@@ -19,6 +19,7 @@ foreach(header ${QUIC_API_HEADERS_TOINSTALL})
 endforeach()
 
 add_executable(echo echo/main.cpp)
+add_executable(simple simple/main.cpp)
 
 target_compile_options(
   echo
@@ -26,8 +27,21 @@ target_compile_options(
   ${_QUIC_COMMON_COMPILE_OPTIONS}
 )
 
+target_compile_options(
+  simple
+  PRIVATE
+  ${_QUIC_COMMON_COMPILE_OPTIONS}
+)
+
 target_link_libraries(
   echo PUBLIC
+  mvfst_test_utils
+  ${GFLAGS_LIBRARIES}
+  ${LIBGMOCK_LIBRARIES}
+)
+
+target_link_libraries(
+  simple PUBLIC
   mvfst_test_utils
   ${GFLAGS_LIBRARIES}
   ${LIBGMOCK_LIBRARIES}
