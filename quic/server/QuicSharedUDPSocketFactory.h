@@ -17,12 +17,12 @@ class QuicSharedUDPSocketFactory : public QuicUDPSocketFactory {
   ~QuicSharedUDPSocketFactory() override {}
   QuicSharedUDPSocketFactory() {}
 
-  std::unique_ptr<folly::AsyncUDPSocket> make(folly::EventBase* evb, int fd)
+  std::unique_ptr<folly::AsyncUDPSocket> make(folly::EventBase* evb, rt::UdpConn* fd)
       override {
     auto sock = std::make_unique<folly::AsyncUDPSocket>(evb);
-    if (fd != -1) {
+    if (fd != nullptr) {
       sock->setFD(
-          folly::NetworkSocket::fromFd(fd),
+          folly::ShNetworkSocket::fromFd(fd),
           folly::AsyncUDPSocket::FDOwnership::SHARED);
       sock->setDFAndTurnOffPMTU();
     }

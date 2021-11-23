@@ -34,9 +34,9 @@ class AcceptObserver;
 class QuicServerWorker : public folly::AsyncUDPSocket::ReadCallback,
                          public QuicServerTransport::RoutingCallback,
                          public ServerConnectionIdRejector,
-                         public folly::EventRecvmsgCallback {
+                         public folly::ShenangoEventRecvmsgCallback {
  private:
-  struct MsgHdr : public folly::EventRecvmsgCallback::MsgHdr {
+  struct MsgHdr : public folly::ShenangoEventRecvmsgCallback::MsgHdr {
     static auto constexpr kBuffSize = 1024;
 
     MsgHdr() = delete;
@@ -60,7 +60,6 @@ class QuicServerWorker : public folly::AsyncUDPSocket::ReadCallback,
       rawAddr->sa_family =
           reinterpret_cast<QuicServerWorker*>(arg_)->getAddress().getFamily();
       data_.msg_name = rawAddr;
-      ;
       data_.msg_namelen = sizeof(addrStorage_);
 #ifdef FOLLY_HAVE_MSG_ERRQUEUE
       if (hasGRO() || hasTimestamping()) {
@@ -71,11 +70,11 @@ class QuicServerWorker : public folly::AsyncUDPSocket::ReadCallback,
 #endif
     }
 
-    static void free(folly::EventRecvmsgCallback::MsgHdr* msgHdr) {
+    static void free(folly::ShenangoEventRecvmsgCallback::MsgHdr* msgHdr) {
       delete msgHdr;
     }
 
-    static void cb(folly::EventRecvmsgCallback::MsgHdr* msgHdr, int res) {
+    static void cb(folly::ShenangoEventRecvmsgCallback::MsgHdr* msgHdr, int res) {
       reinterpret_cast<QuicServerWorker*>(msgHdr->arg_)
           ->eventRecvmsgCallback(reinterpret_cast<MsgHdr*>(msgHdr), res);
     }
@@ -182,7 +181,7 @@ class QuicServerWorker : public folly::AsyncUDPSocket::ReadCallback,
   /*
    * Returns the File Descriptor of the listening socket
    */
-  int getFD();
+  rt::UdpConn* getFD();
 
   /*
    * Apply all the socket options (pre/post bind).
@@ -222,7 +221,7 @@ class QuicServerWorker : public folly::AsyncUDPSocket::ReadCallback,
    * Returns the File Descriptor of the listening socket that handles the
    * packets routed from another quic server.
    */
-  int getTakeoverHandlerSocketFD();
+  rt::UdpConn* getTakeoverHandlerSocketFD();
 
   TakeoverProtocolVersion getTakeoverProtocolVersion() const noexcept;
 
@@ -436,7 +435,7 @@ class QuicServerWorker : public folly::AsyncUDPSocket::ReadCallback,
   }
 
   // from EventRecvmsgCallback
-  EventRecvmsgCallback::MsgHdr* allocateData() override {
+  ShenangoEventRecvmsgCallback::MsgHdr* allocateData() override {
     auto* ret = msgHdr_.release();
     if (!ret) {
       ret = new MsgHdr(this);
@@ -487,7 +486,7 @@ class QuicServerWorker : public folly::AsyncUDPSocket::ReadCallback,
    */
   std::unique_ptr<folly::AsyncUDPSocket> makeSocket(
       folly::EventBase* evb,
-      int fd) const;
+      rt::UdpConn* fd) const;
 
   /**
    * Tries to get the encrypted retry token from a client initial packet

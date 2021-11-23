@@ -231,19 +231,19 @@ void QuicServer::bindWorkersToSocket(
       if (self->shutdown_) {
         return;
       }
-      auto workerSocket = self->listenerSocketFactory_->make(workerEvb, -1);
+      auto workerSocket = self->listenerSocketFactory_->make(workerEvb, nullptr);
       auto it = self->evbToWorkers_.find(workerEvb);
       CHECK(it != self->evbToWorkers_.end());
       auto worker = it->second;
-      int takeoverOverFd = -1;
+      rt::UdpConn* takeoverOverFd = nullptr;
       if (self->listeningFDs_.size() > idx) {
         takeoverOverFd = self->listeningFDs_[idx];
       }
       worker->setSocketOptions(&self->socketOptions_);
       // dup the takenover socket on only one worker and bind the rest
-      if (takeoverOverFd >= 0) {
+      if (takeoverOverFd != nullptr) {
         workerSocket->setFD(
-            folly::NetworkSocket::fromFd(::dup(takeoverOverFd)),
+            folly::ShNetworkSocket::fromFd(takeoverOverFd),
             // set ownership to OWNS to allow ::close()'ing of of the fd
             // when this server goes away
             folly::AsyncUDPSocket::FDOwnership::OWNS);
@@ -339,7 +339,7 @@ void QuicServer::allowBeingTakenOver(const folly::SocketAddress& addr) {
     workerEvb->runInEventBaseThreadAndWait([&] {
       std::lock_guard<std::mutex> guard(startMutex_);
       CHECK(initialized_);
-      auto localListenSocket = listenerSocketFactory_->make(workerEvb, -1);
+      auto localListenSocket = listenerSocketFactory_->make(workerEvb, nullptr);
       auto it = evbToWorkers_.find(workerEvb);
       CHECK(it != evbToWorkers_.end());
       auto worker = it->second;
@@ -371,7 +371,7 @@ folly::SocketAddress QuicServer::overrideTakeoverHandlerAddress(
       std::lock_guard<std::mutex> guard(startMutex_);
       CHECK(initialized_);
       auto workerEvb = worker->getEventBase();
-      auto localListenSocket = listenerSocketFactory_->make(workerEvb, -1);
+      auto localListenSocket = listenerSocketFactory_->make(workerEvb, nullptr);
       boundAddress = worker->overrideTakeoverHandlerAddress(
           std::move(localListenSocket), addr);
     });
@@ -717,23 +717,23 @@ const folly::SocketAddress& QuicServer::getAddress() const {
   return boundAddress_;
 }
 
-void QuicServer::setListeningFDs(const std::vector<int>& fds) {
+void QuicServer::setListeningFDs(const std::vector<rt::UdpConn*>& fds) {
   std::lock_guard<std::mutex> guard(startMutex_);
   listeningFDs_ = fds;
 }
 
-int QuicServer::getListeningSocketFD() const {
+rt::UdpConn* QuicServer::getListeningSocketFD() const {
   CHECK(initialized_) << "Quic server is not initialized. "
                       << "Consider calling waitUntilInitialized() before this ";
   return workers_[0]->getFD();
 }
 
-std::vector<int> QuicServer::getAllListeningSocketFDs() const noexcept {
+std::vector<rt::UdpConn*> QuicServer::getAllListeningSocketFDs() const noexcept {
   CHECK(initialized_) << "Quic server is not initialized. "
                       << "Consider calling waitUntilInitialized() before this ";
-  std::vector<int> sockets(workers_.size());
+  std::vector<rt::UdpConn*> sockets(workers_.size());
   for (const auto& worker : workers_) {
-    if (worker->getFD() != -1) {
+    if (worker->getFD() != nullptr) {
       CHECK_LT(worker->getWorkerId(), workers_.size());
       sockets.at(worker->getWorkerId()) = worker->getFD();
     }
@@ -752,7 +752,7 @@ TakeoverProtocolVersion QuicServer::getTakeoverProtocolVersion()
   return workers_[0]->getTakeoverProtocolVersion();
 }
 
-int QuicServer::getTakeoverHandlerSocketFD() const {
+rt::UdpConn* QuicServer::getTakeoverHandlerSocketFD() const {
   CHECK(takeoverHandlerInitialized_) << "TakeoverHanders are not initialized. ";
   return workers_[0]->getTakeoverHandlerSocketFD();
 }

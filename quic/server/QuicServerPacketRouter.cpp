@@ -68,7 +68,7 @@ const folly::SocketAddress& TakeoverHandlerCallback::getAddress() const {
   return socket_->address();
 }
 
-int TakeoverHandlerCallback::getSocketFD() {
+rt::UdpConn* TakeoverHandlerCallback::getSocketFD() {
   CHECK(socket_);
   return socket_->getNetworkSocket().toFd();
 }
@@ -163,7 +163,7 @@ void TakeoverPacketHandler::setSocketFactory(QuicUDPSocketFactory* factory) {
 void TakeoverPacketHandler::forwardPacket(Buf writeBuffer) {
   if (!pktForwardingSocket_) {
     CHECK(socketFactory_);
-    pktForwardingSocket_ = socketFactory_->make(worker_->getEventBase(), -1);
+    pktForwardingSocket_ = socketFactory_->make(worker_->getEventBase(), nullptr);
     folly::SocketAddress localAddress;
     localAddress.setFromHostPort("::1", 0);
     pktForwardingSocket_->bind(localAddress);

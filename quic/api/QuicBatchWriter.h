@@ -19,14 +19,14 @@ class BatchWriter {
  public:
   BatchWriter() = default;
   virtual ~BatchWriter() {
-    if (fd_ >= 0) {
-      ::close(fd_);
+    if (fd_ != nullptr) {
+      fd_->Shutdown();
     }
   }
 
   void setSock(folly::AsyncUDPSocket* sock) {
     if (sock && !evb_) {
-      fd_ = ::dup(sock->getNetworkSocket().toFd());
+      fd_ = sock->getNetworkSocket().toFd();
       evb_ = sock->getEventBase();
     }
   }
@@ -35,9 +35,9 @@ class BatchWriter {
     return evb_;
   }
 
-  int getAndResetFd() {
+  rt::UdpConn* getAndResetFd() {
     auto ret = fd_;
-    fd_ = -1;
+    fd_ = nullptr;
 
     return ret;
   }
@@ -68,7 +68,7 @@ class BatchWriter {
 
  protected:
   folly::EventBase* evb_{nullptr};
-  int fd_{-1};
+  rt::UdpConn* fd_{nullptr};
 };
 
 class IOBufBatchWriter : public BatchWriter {

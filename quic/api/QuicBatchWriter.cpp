@@ -100,10 +100,10 @@ class ThreadLocalBatchWriterCache : public folly::AsyncTimeout {
 
       if (evb && !socket_) {
         auto fd = writer->getAndResetFd();
-        if (fd >= 0) {
+        if (fd != nullptr) {
           socket_ = std::make_unique<folly::AsyncUDPSocket>(evb);
           socket_->setFD(
-              folly::NetworkSocket(fd),
+              folly::ShNetworkSocket(fd),
               folly::AsyncUDPSocket::FDOwnership::OWNS);
         }
         attachTimeoutManager(evb);

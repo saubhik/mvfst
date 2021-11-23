@@ -287,18 +287,18 @@ class QuicServer : public QuicServerWorker::WorkerCallback,
    * all the valid fds (i.e. not -1) in the given vector
    * NOTE: it must be called before calling 'start()'
    */
-  void setListeningFDs(const std::vector<int>& fds);
+  void setListeningFDs(const std::vector<rt::UdpConn*>& fds);
 
   /*
    * Returns the File Descriptor of the listening socket for this server.
    */
-  int getListeningSocketFD() const;
+  rt::UdpConn* getListeningSocketFD() const;
 
   /*
    * Returns all the File Descriptor of the listening sockets for each
    * worker for this server.
    */
-  std::vector<int> getAllListeningSocketFDs() const noexcept;
+  std::vector<rt::UdpConn*> getAllListeningSocketFDs() const noexcept;
 
   /*
    * Once this server is notified that another server has initiated the takeover
@@ -307,7 +307,7 @@ class QuicServer : public QuicServerWorker::WorkerCallback,
    * This method returns the File Descriptor of a local port that this server
    * is listening to.
    */
-  int getTakeoverHandlerSocketFD() const;
+  rt::UdpConn* getTakeoverHandlerSocketFD() const;
 
   TakeoverProtocolVersion getTakeoverProtocolVersion() const noexcept;
 
@@ -434,7 +434,7 @@ class QuicServer : public QuicServerWorker::WorkerCallback,
   std::shared_ptr<folly::EventBaseObserver> evbObserver_;
   folly::Optional<std::string> healthCheckToken_;
   // vector of all the listening fds on each quic server worker
-  std::vector<int> listeningFDs_;
+  std::vector<rt::UdpConn*> listeningFDs_;
   ProcessId processId_{ProcessId::ZERO};
   uint32_t hostId_{0};
   ConnectionIdVersion cidVersion_{ConnectionIdVersion::V1};
