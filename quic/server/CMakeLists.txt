@@ -99,5 +99,5 @@ install(
   DESTINATION lib
 )
 
-add_subdirectory(test)
-add_subdirectory(handshake/test)
+# add_subdirectory(test)
+# add_subdirectory(handshake/test)

@@ -10,7 +10,6 @@
 
 #include <iostream>
 #include <string>
-#include <thread>
 
 #include <glog/logging.h>
 
