@@ -115,6 +115,9 @@ sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-7 70 --slave /u
 sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-11 110 --slave /usr/bin/g++ g++ /usr/bin/g++-11 --slave /usr/bin/gcov gcov /usr/bin/gcov-11 --slave /usr/bin/gcc-ar gcc-ar /usr/bin/gcc-ar-11 --slave /usr/bin/gcc-ranlib gcc-ranlib /usr/bin/gcc-ranlib-11  --slave /usr/bin/cpp cpp /usr/bin/cpp-11
 ```
 
+Note that you might not need to do `sudo update-alternatives --remove-all cpp` before the last 2 commands.
+If there's any error, execute just the last two commands.
+
 Ensure that the g++ version is 11.1.0:
 ```shell
 g++ --version
@@ -143,7 +146,7 @@ Use the following:
 sudo update-alternatives --config gcc
 ```
 
-Make bindings.
+Now, continue with the building:
 ```shell
 make -C bindings/cc && \
 pushd ksched && \
