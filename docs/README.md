@@ -90,13 +90,37 @@ sudo apt-get install \
     libsodium-dev
 ```
 
-And then build shenango and run the iokernel as explained in the next section.
+And then build shenango and run the iokernel as explained in the coming sections.
 
 You also need to install g++ 11.1.0 on the client node execute mvfst and folly binaries.
-Follow the section (in this README) on installing g++ 11.1.0.
+Follow the next section on installing g++ 11.1.0.
 You don't need to install anything more on the client node.
 
-The below steps apply to the server node.
+### Install gcc 11.1.0
+
+folly requires g++-11 (unlike shenango).
+Unfortunately, it doesn't come by default in the ubuntu version we are using.
+So, we need to do the following.
+
+```shell
+sudo apt install build-essential manpages-dev software-properties-common && \
+sudo add-apt-repository ppa:ubuntu-toolchain-r/test && \
+sudo apt update && sudo apt install gcc-11 g++-11
+```
+
+Then, we need to be able to switch the default gcc to 11
+```shell
+sudo update-alternatives --remove-all cpp && \
+sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-7 70 --slave /usr/bin/g++ g++ /usr/bin/g++-7 --slave /usr/bin/gcov gcov /usr/bin/gcov-7 --slave /usr/bin/gcc-ar gcc-ar /usr/bin/gcc-ar-7 --slave /usr/bin/gcc-ranlib gcc-ranlib /usr/bin/gcc-ranlib-7  --slave /usr/bin/cpp cpp /usr/bin/cpp-7 && \
+sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-11 110 --slave /usr/bin/g++ g++ /usr/bin/g++-11 --slave /usr/bin/gcov gcov /usr/bin/gcov-11 --slave /usr/bin/gcc-ar gcc-ar /usr/bin/gcc-ar-11 --slave /usr/bin/gcc-ranlib gcc-ranlib /usr/bin/gcc-ranlib-11  --slave /usr/bin/cpp cpp /usr/bin/cpp-11
+```
+
+Ensure that the g++ version is 11.1.0:
+```shell
+g++ --version
+```
+
+NOTE: We can switch gcc/g++ versions using `sudo update-alternatives --config gcc`, if you need gcc-7.5.0 to build shenango in case you modified something.
 
 ## Building (our) shenango
 
@@ -110,7 +134,17 @@ Then, build shenango:
 git clone -b feature/shenango-eventing https://github.com/saubhik/caladan.git && \
 cd caladan && \
 make submodules && \
-make clean && make -j20 && \
+make clean && make -j20
+```
+
+Now, you might need to switch to g++-11 to make bindings/cc.
+Use the following:
+```shell
+sudo update-alternatives --config gcc
+```
+
+Make bindings.
+```shell
 make -C bindings/cc && \
 pushd ksched && \
 make clean && make && \
@@ -194,32 +228,6 @@ cmake .. && \
 make -j20 && \
 sudo make install
 ```
-
-### Install gcc 11.1.0
-
-folly requires g++-11 (unlike shenango).
-Unfortunately, it doesn't come by default in the ubuntu version we are using.
-So, we need to do the following.
-
-```shell
-sudo apt install build-essential manpages-dev software-properties-common && \
-sudo add-apt-repository ppa:ubuntu-toolchain-r/test && \
-sudo apt update && sudo apt install gcc-11 g++-11
-```
-
-Then, we need to be able to switch the default gcc to 11
-```shell
-sudo update-alternatives --remove-all cpp && \
-sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-7 70 --slave /usr/bin/g++ g++ /usr/bin/g++-7 --slave /usr/bin/gcov gcov /usr/bin/gcov-7 --slave /usr/bin/gcc-ar gcc-ar /usr/bin/gcc-ar-7 --slave /usr/bin/gcc-ranlib gcc-ranlib /usr/bin/gcc-ranlib-7  --slave /usr/bin/cpp cpp /usr/bin/cpp-7 && \
-sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-11 110 --slave /usr/bin/g++ g++ /usr/bin/g++-11 --slave /usr/bin/gcov gcov /usr/bin/gcov-11 --slave /usr/bin/gcc-ar gcc-ar /usr/bin/gcc-ar-11 --slave /usr/bin/gcc-ranlib gcc-ranlib /usr/bin/gcc-ranlib-11  --slave /usr/bin/cpp cpp /usr/bin/cpp-11
-```
-
-Ensure that the g++ version is 11.1.0:
-```shell
-g++ --version
-```
-
-NOTE: We can switch gcc/g++ versions using `sudo update-alternatives --config gcc`, if you need gcc-7.5.0 to build shenango in case you modified something.
 
 
 ### Install (our) folly
@@ -365,7 +373,7 @@ make -j20 && \
 sudo make install
 ```
 
-That's it you have built mvfst!
+That's it, you have built mvfst!
 
 ### Running the mvfst Echo app
 
@@ -375,7 +383,7 @@ cd /proj/quic-server-PG0/users/saubhik/tmp/mvfst/_build && \
 ./quic/samples/echo -mode=server -host=10.10.1.1 -port=8000
 ```
 
-You can run the client (on another machine) as follows:
+You can run the client (on client node) as follows:
 ```shell
 cd /proj/quic-server-PG0/users/saubhik/tmp/mvfst/_build && \
 ./quic/samples/echo -mode=client -host=10.10.1.1 -port=8000
