@@ -91,14 +91,13 @@ sudo apt-get install \
 ```
 
 And then build shenango and run the iokernel as explained in the coming sections.
-
 You also need to install g++ 11.1.0 on the client node execute mvfst and folly binaries.
 Follow the next section on installing g++ 11.1.0.
 You don't need to install anything more on the client node.
 
 ### Install gcc 11.1.0
 
-folly requires g++-11 (unlike shenango).
+folly & shenango's bindings/cc requires g++-11.
 Unfortunately, it doesn't come by default in the ubuntu version we are using.
 So, we need to do the following.
 
