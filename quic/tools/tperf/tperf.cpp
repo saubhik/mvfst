@@ -738,7 +738,7 @@ quic::CongestionControlType flagsToCongestionControlType(
   return *ccType;
 }
 
-void ServerHandler(void* args) {
+void ServerHandler(void* /*args*/) {
   TPerfServer server(
       FLAGS_host,
       FLAGS_port,
@@ -755,7 +755,7 @@ void ServerHandler(void* args) {
   server.start();
 }
 
-void ClientHandler(void* args) {
+void ClientHandler(void* /*args*/) {
   TPerfClient client(
       FLAGS_host,
       FLAGS_port,
