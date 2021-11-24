@@ -74,7 +74,10 @@ class EchoServer {
     // Create a SocketAddress and the default or passed in host.
     folly::SocketAddress addr1(host_.c_str(), port_);
     addr1.setFromHostPort(host_, port_);
-    server_->start(addr1, 0);
+
+    // Currently, Shenango can only support 1 worker to listen
+    // to an address.
+    server_->start(addr1, 1);
     LOG(INFO) << "Echo server started at: " << addr1.describe();
     eventbase_.loopForever();
   }

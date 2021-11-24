@@ -27,6 +27,8 @@
 #include <quic/tools/tperf/PacingObserver.h>
 #include <quic/tools/tperf/TperfQLogger.h>
 
+#include "runtime.h"
+
 DEFINE_string(host, "::1", "TPerf server hostname/IP");
 DEFINE_int32(port, 6666, "TPerf server port");
 DEFINE_string(mode, "server", "Mode to run in: 'client' or 'server'");
@@ -135,6 +137,7 @@ ProbeSizeRaiserType parseRaiserType(uint32_t type) {
 class TPerfObserver : public Observer {
  public:
   TPerfObserver(const Observer::Config& config) : Observer(config) {}
+
   void appRateLimited(
       QuicSocket* /* socket */,
       const quic::Observer::AppLimitedEvent& /* appLimitedEvent */) override {
@@ -307,7 +310,7 @@ class ServerStreamHandler : public quic::QuicSocket::ConnectionCallback,
   void readError(
       quic::StreamId id,
       std::pair<quic::QuicErrorCode, folly::Optional<folly::StringPiece>>
-          error) noexcept override {
+      error) noexcept override {
     LOG(ERROR) << "Got read error on stream=" << id
                << " error=" << toString(error);
     // A read error only terminates the ingress portion of the stream state.
@@ -316,7 +319,7 @@ class ServerStreamHandler : public quic::QuicSocket::ConnectionCallback,
   }
 
   void onStreamWriteReady(quic::StreamId id, uint64_t maxToSend) noexcept
-      override {
+  override {
     bool eof = false;
     uint64_t toSend = maxToSend;
     if (maxBytesPerStream_ > 0) {
@@ -348,7 +351,7 @@ class ServerStreamHandler : public quic::QuicSocket::ConnectionCallback,
   void onStreamWriteError(
       quic::StreamId id,
       std::pair<quic::QuicErrorCode, folly::Optional<folly::StringPiece>>
-          error) noexcept override {
+      error) noexcept override {
     LOG(ERROR) << "write error with stream=" << id
                << " error=" << toString(error);
   }
@@ -383,7 +386,7 @@ class TPerfServerTransportFactory : public quic::QuicServerTransportFactory {
       std::unique_ptr<folly::AsyncUDPSocket> sock,
       const folly::SocketAddress&,
       std::shared_ptr<const fizz::server::FizzServerContext> ctx) noexcept
-      override {
+  override {
     CHECK_EQ(evb, sock->getEventBase());
     auto serverHandler = std::make_unique<ServerStreamHandler>(
         evb, blockSize_, numStreams_, maxBytesPerStream_);
@@ -498,7 +501,7 @@ class TPerfServer {
     addr1.setFromHostPort(host_, port_);
     server_->start(addr1, FLAGS_num_server_worker);
     auto workerEvbs = server_->getWorkerEvbs();
-    for (auto evb : workerEvbs) {
+    for (auto evb: workerEvbs) {
       server_->addAcceptObserver(evb, acceptObserver_.get());
     }
     LOG(INFO) << "tperf server started at: " << addr1.describe();
@@ -550,19 +553,19 @@ class TPerfClient : public quic::QuicSocket::ConnectionCallback,
     // Per Stream Stats
     LOG(INFO) << "Average per Stream throughput: "
               << ((receivedBytes_ / receivedStreams_) / bytesPerMegabit) /
-            duration_.count()
+                 duration_.count()
               << "Mb/s over " << receivedStreams_ << " streams";
     if (receivedStreams_ != 1) {
       LOG(INFO) << "Histogram per Stream bytes: " << std::endl;
       LOG(INFO) << "Lo\tHi\tNum\tSum";
-      for (const auto bytes : bytesPerStream_) {
+      for (const auto bytes: bytesPerStream_) {
         bytesPerStreamHistogram_.addValue(bytes.second);
       }
       std::ostringstream os;
       bytesPerStreamHistogram_.toTSV(os);
       std::vector<std::string> lines;
       folly::split("\n", os.str(), lines);
-      for (const auto& line : lines) {
+      for (const auto& line: lines) {
         LOG(INFO) << line;
       }
     }
@@ -574,7 +577,7 @@ class TPerfClient : public quic::QuicSocket::ConnectionCallback,
     auto readData = quicClient_->read(streamId, 0);
     if (readData.hasError()) {
       LOG(FATAL) << "TPerfClient failed read from stream=" << streamId
-                 << ", error=" << (uint32_t)readData.error();
+                 << ", error=" << (uint32_t) readData.error();
     }
 
     auto readBytes = readData->first->computeChainDataLength();
@@ -633,7 +636,7 @@ class TPerfClient : public quic::QuicSocket::ConnectionCallback,
   }
 
   void onStreamWriteReady(quic::StreamId id, uint64_t maxToSend) noexcept
-      override {
+  override {
     LOG(INFO) << "TPerfClient stream" << id
               << " is write ready with maxToSend=" << maxToSend;
   }
@@ -641,7 +644,7 @@ class TPerfClient : public quic::QuicSocket::ConnectionCallback,
   void onStreamWriteError(
       quic::StreamId id,
       std::pair<quic::QuicErrorCode, folly::Optional<folly::StringPiece>>
-          error) noexcept override {
+      error) noexcept override {
     LOG(ERROR) << "TPerfClient write error with stream=" << id
                << " error=" << toString(error);
   }
@@ -735,6 +738,36 @@ quic::CongestionControlType flagsToCongestionControlType(
   return *ccType;
 }
 
+void ServerHandler(void* args) {
+  TPerfServer server(
+      FLAGS_host,
+      FLAGS_port,
+      FLAGS_block_size,
+      FLAGS_writes_per_loop,
+      flagsToCongestionControlType(FLAGS_congestion),
+      FLAGS_gso,
+      FLAGS_max_cwnd_mss,
+      FLAGS_pacing,
+      FLAGS_num_streams,
+      FLAGS_bytes_per_stream,
+      FLAGS_max_receive_packet_size,
+      FLAGS_use_inplace_write);
+  server.start();
+}
+
+void ClientHandler(void* args) {
+  TPerfClient client(
+      FLAGS_host,
+      FLAGS_port,
+      std::chrono::milliseconds(FLAGS_client_transport_timer_resolution_ms),
+      FLAGS_duration,
+      FLAGS_window,
+      FLAGS_gso,
+      flagsToCongestionControlType(FLAGS_congestion),
+      FLAGS_max_receive_packet_size);
+  client.start();
+}
+
 int main(int argc, char* argv[]) {
 #if FOLLY_HAVE_LIBGFLAGS
   // Enable glog logging to stderr by default.
@@ -746,20 +779,7 @@ int main(int argc, char* argv[]) {
   fizz::CryptoUtils::init();
 
   if (FLAGS_mode == "server") {
-    TPerfServer server(
-        FLAGS_host,
-        FLAGS_port,
-        FLAGS_block_size,
-        FLAGS_writes_per_loop,
-        flagsToCongestionControlType(FLAGS_congestion),
-        FLAGS_gso,
-        FLAGS_max_cwnd_mss,
-        FLAGS_pacing,
-        FLAGS_num_streams,
-        FLAGS_bytes_per_stream,
-        FLAGS_max_receive_packet_size,
-        FLAGS_use_inplace_write);
-    server.start();
+    runtime_init("/proj/quic-server-PG0/users/saubhik/caladan/server.config", ServerHandler, nullptr);
   } else if (FLAGS_mode == "client") {
     if (FLAGS_num_streams != 1) {
       LOG(ERROR) << "num_streams option is server only";
@@ -769,16 +789,7 @@ int main(int argc, char* argv[]) {
       LOG(ERROR) << "bytes_per_stream option is server only";
       return 1;
     }
-    TPerfClient client(
-        FLAGS_host,
-        FLAGS_port,
-        std::chrono::milliseconds(FLAGS_client_transport_timer_resolution_ms),
-        FLAGS_duration,
-        FLAGS_window,
-        FLAGS_gso,
-        flagsToCongestionControlType(FLAGS_congestion),
-        FLAGS_max_receive_packet_size);
-    client.start();
+    runtime_init("/proj/quic-server-PG0/users/saubhik/caladan/client.config", ClientHandler, nullptr);
   }
   return 0;
 }
