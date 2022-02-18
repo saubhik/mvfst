@@ -181,7 +181,7 @@ cd mvfst && \
 That's all! Successive runs of `build_helper.sh` will be (much) faster!
 
 <details>
-<summary>See build instructions for folly, fizz & mvfst without `build_helper.sh`!</summary>
+<summary>*Click here to see build instructions for folly, fizz & mvfst without `build_helper.sh`!*</summary>
 
 ## Building (our) folly
 
