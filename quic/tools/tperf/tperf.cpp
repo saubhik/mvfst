@@ -103,7 +103,7 @@ DEFINE_uint32(
     "Server only. PMTU blackhole detection threshold, in # of packets");
 DEFINE_uint32(
     d6d_base_pmtu,
-    1252,
+    1458,
     "Client only. The base PMTU advertised to server");
 DEFINE_uint32(
     d6d_raise_timeout_secs,

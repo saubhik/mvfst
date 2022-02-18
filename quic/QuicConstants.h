@@ -23,14 +23,14 @@ using namespace std::chrono_literals;
 
 // Default QUIC packet size for both read and write.
 // TODO(xtt): make them configurable
-constexpr uint64_t kDefaultV4UDPSendPacketLen = 1252;
-constexpr uint64_t kDefaultV6UDPSendPacketLen = 1232;
+constexpr uint64_t kDefaultV4UDPSendPacketLen = 1458;
+constexpr uint64_t kDefaultV6UDPSendPacketLen = 1458;
 // With Android NDK r15c for some apps we use gnu-libstdc++ instead of
 // llvm-libc++. And gnu-libstdc++ doesn't like to make std::min constexpr.
-constexpr uint16_t kDefaultUDPSendPacketLen =
-    (kDefaultV4UDPSendPacketLen < kDefaultV6UDPSendPacketLen
-         ? kDefaultV4UDPSendPacketLen
-         : kDefaultV6UDPSendPacketLen);
+constexpr uint16_t kDefaultUDPSendPacketLen = 1458;
+//    (kDefaultV4UDPSendPacketLen < kDefaultV6UDPSendPacketLen
+//         ? kDefaultV4UDPSendPacketLen
+//         : kDefaultV6UDPSendPacketLen);
 // The max we will tolerate a peer's max_packet_size to be.
 constexpr uint16_t kDefaultMaxUDPPayload = 1452;
 
@@ -455,7 +455,7 @@ constexpr size_t kMaxReasonPhraseLength = 1024;
 constexpr size_t kMinInitialPacketSize = 1200;
 
 // Default maximum PTOs that will happen before tearing down the connection
-constexpr uint16_t kDefaultMaxNumPTO = 7;
+constexpr uint16_t kDefaultMaxNumPTO = 70;
 
 // Maximum early data size that we need to negotiate in TLS
 constexpr uint32_t kRequiredMaxEarlyDataSize = 0xffffffff;
