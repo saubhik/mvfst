@@ -164,6 +164,25 @@ You can attach back using `tmux a`.
 
 That's it for shenango.
 
+## Build instructions for folly, fizz & mvfst (Feb 18, 2022)
+
+cd back to our NFS root.
+```shell
+cd /proj/quic-server-PG0/users/saubhik/tmp
+```
+
+Clone our mvfst & run `build_helper.sh`!
+```shell
+git clone -b feature/fix-compilation-issues https://github.com/saubhik/mvfst.git && \
+cd mvfst && \
+./build_helper.sh
+```
+
+That's all! Successive runs of `build_helper.sh` will be (much) faster!
+
+<details>
+<summary>See build instructions for folly, fizz & mvfst without `build_helper.sh`!</summary>
+
 ## Building (our) folly
 
 cd back to our NFS root.
@@ -376,25 +395,36 @@ sudo make install
 ```
 
 That's it, you have built mvfst!
+</details>
 
 ### Running the mvfst Echo app
 
 You can run the server as follows:
 ```shell
-cd /proj/quic-server-PG0/users/saubhik/tmp/mvfst/_build && \
+cd /proj/quic-server-PG0/users/saubhik/tmp/mvfst/_build/build && \
 ./quic/samples/echo -mode=server -host=10.10.1.1 -port=8000
 ```
 
 You can run the client (on client node) as follows:
 ```shell
-cd /proj/quic-server-PG0/users/saubhik/tmp/mvfst/_build && \
+cd /proj/quic-server-PG0/users/saubhik/tmp/mvfst/_build/build && \
 ./quic/samples/echo -mode=client -host=10.10.1.1 -port=8000
 ```
 
-When you modify anything in mvfst or folly, you can go to their `_build` directory and just do the following:
+### Running tperf
+
+You can run the server as follows:
 ```shell
-make -j20 && sudo make install
+cd /proj/quic-server-PG0/users/saubhik/tmp/mvfst/_build/build && \
+./quic/tools/tperf/tperf -mode=server -host=10.10.1.1 -port=8000 -use_inplace_write=true -gso=true -log_loss=true -window=1000000 -duration=60
 ```
-There is no need to do `cmake ..` or similar.
+
+You can run the client (on client node) as follows:
+```shell
+cd /proj/quic-server-PG0/users/saubhik/tmp/mvfst/_build/build && \
+./quic/tools/tperf/tperf -mode=client -host=10.10.1.1 -port=8000 -use_inplace_write=true -gso=true -log_loss=true -window=1000000 -duration=60
+```
+
+Enjoy the high speeds!
 
 ---
