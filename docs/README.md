@@ -135,8 +135,7 @@ Then, build shenango:
 ```shell
 git clone -b feature/add-udp-gso https://github.com/saubhik/caladan.git && \
 cd caladan && \
-make submodules && \
-make clean && make -j20
+make submodules
 ```
 
 Now, you might need to switch to g++-11 to make bindings/cc.
@@ -147,6 +146,7 @@ sudo update-alternatives --config gcc
 
 Now, continue with the building:
 ```shell
+make clean && make -j20 && \
 make -C bindings/cc && \
 pushd ksched && \
 make clean && make && \
