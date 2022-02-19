@@ -133,7 +133,7 @@ gcc --version
 
 Then, build shenango:
 ```shell
-git clone -b feature/shenango-eventing https://github.com/saubhik/caladan.git && \
+git clone -b feature/add-udp-gso https://github.com/saubhik/caladan.git && \
 cd caladan && \
 make submodules && \
 make clean && make -j20
