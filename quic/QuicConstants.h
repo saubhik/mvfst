@@ -1,10 +1,10 @@
 /*
- * Copyright (c) Facebook, Inc. and its affiliates.
- *
- * This source code is licensed under the MIT license found in the
- * LICENSE file in the root directory of this source tree.
- *
- */
+* Copyright (c) Facebook, Inc. and its affiliates.
+*
+* This source code is licensed under the MIT license found in the
+* LICENSE file in the root directory of this source tree.
+*
+*/
 
 #pragma once
 
@@ -32,12 +32,12 @@ constexpr uint16_t kDefaultUDPSendPacketLen = 1458;
 //         ? kDefaultV4UDPSendPacketLen
 //         : kDefaultV6UDPSendPacketLen);
 // The max we will tolerate a peer's max_packet_size to be.
-constexpr uint16_t kDefaultMaxUDPPayload = 1452;
+constexpr uint16_t kDefaultMaxUDPPayload = 1458;
 
 // This is the minimum the max_packet_size transport parameter is allowed to be,
 // per the spec. Note this actually refers to the max UDP payload size, not the
 // maximum QUIC packet size.
-constexpr uint16_t kMinMaxUDPPayload = 1200;
+constexpr uint16_t kMinMaxUDPPayload = 1458;
 
 // How many bytes to reduce from udpSendPacketLen when socket write leads to
 // EMSGSIZE.
@@ -103,11 +103,11 @@ constexpr uint32_t kRetryIntegrityTagLen = 16;
 // threshold, then the callback registered through
 // notifyPendingWriteOnConnection() will not be called
 constexpr uint64_t kDefaultBufferSpaceAvailable =
-    std::numeric_limits<uint64_t>::max();
+   std::numeric_limits<uint64_t>::max();
 
 // The default min rtt to use for a new connection
 constexpr std::chrono::microseconds kDefaultMinRtt =
-    std::chrono::microseconds::max();
+   std::chrono::microseconds::max();
 
 // Default knob space for transport knobs (used for internal use-cases only)
 constexpr uint64_t kDefaultQuicTransportKnobSpace = 0xfaceb001;
@@ -116,152 +116,152 @@ constexpr uint64_t kDefaultQuicTransportKnobSpace = 0xfaceb001;
 constexpr uint64_t kDefaultQuicTransportKnobId = 1;
 
 enum class TransportKnobParamId : uint64_t {
-  // Disabling pmtu blackhole detection
-  ZERO_PMTU_BLACKHOLE_DETECTION = 0x8830,
-  // Force udp payload size to be equal to max
-  // udp payload size
-  FORCIBLY_SET_UDP_PAYLOAD_SIZE = 0xba92,
+ // Disabling pmtu blackhole detection
+ ZERO_PMTU_BLACKHOLE_DETECTION = 0x8830,
+ // Force udp payload size to be equal to max
+ // udp payload size
+ FORCIBLY_SET_UDP_PAYLOAD_SIZE = 0xba92,
 };
 
 enum class FrameType : uint64_t {
-  PADDING = 0x00,
-  PING = 0x01,
-  ACK = 0x02,
-  ACK_ECN = 0x03,
-  RST_STREAM = 0x04,
-  STOP_SENDING = 0x05,
-  CRYPTO_FRAME = 0x06, // librtmp has a #define CRYPTO
-  NEW_TOKEN = 0x07,
-  // STREAM frame can have values from 0x08 to 0x0f which indicate which fields
-  // are present in the frame.
-  STREAM = 0x08,
-  STREAM_FIN = 0x09,
-  STREAM_LEN = 0x0a,
-  STREAM_LEN_FIN = 0x0b,
-  STREAM_OFF = 0x0c,
-  STREAM_OFF_FIN = 0x0d,
-  STREAM_OFF_LEN = 0x0e,
-  STREAM_OFF_LEN_FIN = 0x0f,
-  MAX_DATA = 0x10,
-  MAX_STREAM_DATA = 0x11,
-  MAX_STREAMS_BIDI = 0x12,
-  MAX_STREAMS_UNI = 0x13,
-  DATA_BLOCKED = 0x14,
-  STREAM_DATA_BLOCKED = 0x15,
-  STREAMS_BLOCKED_BIDI = 0x16,
-  STREAMS_BLOCKED_UNI = 0x17,
-  NEW_CONNECTION_ID = 0x18,
-  RETIRE_CONNECTION_ID = 0x19,
-  PATH_CHALLENGE = 0x1A,
-  PATH_RESPONSE = 0x1B,
-  CONNECTION_CLOSE = 0x1C,
-  // CONNECTION_CLOSE_APP_ERR frametype is use to indicate application errors
-  CONNECTION_CLOSE_APP_ERR = 0x1D,
-  HANDSHAKE_DONE = 0x1E,
-  KNOB = 0x1550,
-  ACK_FREQUENCY = 0xAF,
+ PADDING = 0x00,
+ PING = 0x01,
+ ACK = 0x02,
+ ACK_ECN = 0x03,
+ RST_STREAM = 0x04,
+ STOP_SENDING = 0x05,
+ CRYPTO_FRAME = 0x06, // librtmp has a #define CRYPTO
+ NEW_TOKEN = 0x07,
+ // STREAM frame can have values from 0x08 to 0x0f which indicate which fields
+ // are present in the frame.
+ STREAM = 0x08,
+ STREAM_FIN = 0x09,
+ STREAM_LEN = 0x0a,
+ STREAM_LEN_FIN = 0x0b,
+ STREAM_OFF = 0x0c,
+ STREAM_OFF_FIN = 0x0d,
+ STREAM_OFF_LEN = 0x0e,
+ STREAM_OFF_LEN_FIN = 0x0f,
+ MAX_DATA = 0x10,
+ MAX_STREAM_DATA = 0x11,
+ MAX_STREAMS_BIDI = 0x12,
+ MAX_STREAMS_UNI = 0x13,
+ DATA_BLOCKED = 0x14,
+ STREAM_DATA_BLOCKED = 0x15,
+ STREAMS_BLOCKED_BIDI = 0x16,
+ STREAMS_BLOCKED_UNI = 0x17,
+ NEW_CONNECTION_ID = 0x18,
+ RETIRE_CONNECTION_ID = 0x19,
+ PATH_CHALLENGE = 0x1A,
+ PATH_RESPONSE = 0x1B,
+ CONNECTION_CLOSE = 0x1C,
+ // CONNECTION_CLOSE_APP_ERR frametype is use to indicate application errors
+ CONNECTION_CLOSE_APP_ERR = 0x1D,
+ HANDSHAKE_DONE = 0x1E,
+ KNOB = 0x1550,
+ ACK_FREQUENCY = 0xAF,
 };
 
 inline constexpr uint16_t toFrameError(FrameType frame) {
-  return 0x0100 | static_cast<uint8_t>(frame);
+ return 0x0100 | static_cast<uint8_t>(frame);
 }
 
 enum class TransportErrorCode : uint16_t {
-  NO_ERROR = 0x0000,
-  INTERNAL_ERROR = 0x0001,
-  SERVER_BUSY = 0x0002,
-  FLOW_CONTROL_ERROR = 0x0003,
-  STREAM_LIMIT_ERROR = 0x0004,
-  STREAM_STATE_ERROR = 0x0005,
-  FINAL_SIZE_ERROR = 0x0006,
-  FRAME_ENCODING_ERROR = 0x0007,
-  TRANSPORT_PARAMETER_ERROR = 0x0008,
-  PROTOCOL_VIOLATION = 0x000A,
-  INVALID_MIGRATION = 0x000C,
-  CRYPTO_ERROR = 0x100,
-  CRYPTO_ERROR_MAX = 0x1ff,
-  INVALID_TOKEN = 0xb,
+ NO_ERROR = 0x0000,
+ INTERNAL_ERROR = 0x0001,
+ SERVER_BUSY = 0x0002,
+ FLOW_CONTROL_ERROR = 0x0003,
+ STREAM_LIMIT_ERROR = 0x0004,
+ STREAM_STATE_ERROR = 0x0005,
+ FINAL_SIZE_ERROR = 0x0006,
+ FRAME_ENCODING_ERROR = 0x0007,
+ TRANSPORT_PARAMETER_ERROR = 0x0008,
+ PROTOCOL_VIOLATION = 0x000A,
+ INVALID_MIGRATION = 0x000C,
+ CRYPTO_ERROR = 0x100,
+ CRYPTO_ERROR_MAX = 0x1ff,
+ INVALID_TOKEN = 0xb,
 };
 
 /**
- * Application error codes are opaque to QUIC transport.  Each application
- * protocol can define its own error codes.
- */
+* Application error codes are opaque to QUIC transport.  Each application
+* protocol can define its own error codes.
+*/
 using ApplicationErrorCode = uint16_t;
 
 /**
- * Example application error codes, or codes that can be used by very simple
- * applications.  Note: by convention error code 0 means no error.
- *
- * It is convenient to use not strongly typed enums so they are implicitly
- * castable to ints, but to get the scoping semantics we enclose it in a
- * namespace of the same name.
- */
+* Example application error codes, or codes that can be used by very simple
+* applications.  Note: by convention error code 0 means no error.
+*
+* It is convenient to use not strongly typed enums so they are implicitly
+* castable to ints, but to get the scoping semantics we enclose it in a
+* namespace of the same name.
+*/
 namespace GenericApplicationErrorCode {
 enum GenericApplicationErrorCode : uint16_t {
-  NO_ERROR = 0x0000,
-  UNKNOWN = 0xFFFF
+ NO_ERROR = 0x0000,
+ UNKNOWN = 0xFFFF
 };
 }
 
 enum class LocalErrorCode : uint32_t {
-  // Local errors
-  NO_ERROR = 0x00000000,
-  CONNECT_FAILED = 0x40000000,
-  CODEC_ERROR = 0x40000001,
-  STREAM_CLOSED = 0x40000002,
-  STREAM_NOT_EXISTS = 0x40000003,
-  CREATING_EXISTING_STREAM = 0x40000004,
-  SHUTTING_DOWN = 0x40000005,
-  RESET_CRYPTO_STREAM = 0x40000006,
-  CWND_OVERFLOW = 0x40000007,
-  INFLIGHT_BYTES_OVERFLOW = 0x40000008,
-  LOST_BYTES_OVERFLOW = 0x40000009,
-  // This is a retryable error. When encountering this error,
-  // the user should retry the request.
-  NEW_VERSION_NEGOTIATED = 0x4000000A,
-  INVALID_WRITE_CALLBACK = 0x4000000B,
-  TLS_HANDSHAKE_FAILED = 0x4000000C,
-  APP_ERROR = 0x4000000D,
-  INTERNAL_ERROR = 0x4000000E,
-  TRANSPORT_ERROR = 0x4000000F,
-  INVALID_WRITE_DATA = 0x40000010,
-  INVALID_STATE_TRANSITION = 0x40000011,
-  CONNECTION_CLOSED = 0x40000012,
-  EARLY_DATA_REJECTED = 0x40000013,
-  CONNECTION_RESET = 0x40000014,
-  IDLE_TIMEOUT = 0x40000015,
-  PACKET_NUMBER_ENCODING = 0x40000016,
-  INVALID_OPERATION = 0x40000017,
-  STREAM_LIMIT_EXCEEDED = 0x40000018,
-  CONNECTION_ABANDONED = 0x40000019,
-  CALLBACK_ALREADY_INSTALLED = 0x4000001A,
-  KNOB_FRAME_UNSUPPORTED = 0x4000001B,
+ // Local errors
+ NO_ERROR = 0x00000000,
+ CONNECT_FAILED = 0x40000000,
+ CODEC_ERROR = 0x40000001,
+ STREAM_CLOSED = 0x40000002,
+ STREAM_NOT_EXISTS = 0x40000003,
+ CREATING_EXISTING_STREAM = 0x40000004,
+ SHUTTING_DOWN = 0x40000005,
+ RESET_CRYPTO_STREAM = 0x40000006,
+ CWND_OVERFLOW = 0x40000007,
+ INFLIGHT_BYTES_OVERFLOW = 0x40000008,
+ LOST_BYTES_OVERFLOW = 0x40000009,
+ // This is a retryable error. When encountering this error,
+ // the user should retry the request.
+ NEW_VERSION_NEGOTIATED = 0x4000000A,
+ INVALID_WRITE_CALLBACK = 0x4000000B,
+ TLS_HANDSHAKE_FAILED = 0x4000000C,
+ APP_ERROR = 0x4000000D,
+ INTERNAL_ERROR = 0x4000000E,
+ TRANSPORT_ERROR = 0x4000000F,
+ INVALID_WRITE_DATA = 0x40000010,
+ INVALID_STATE_TRANSITION = 0x40000011,
+ CONNECTION_CLOSED = 0x40000012,
+ EARLY_DATA_REJECTED = 0x40000013,
+ CONNECTION_RESET = 0x40000014,
+ IDLE_TIMEOUT = 0x40000015,
+ PACKET_NUMBER_ENCODING = 0x40000016,
+ INVALID_OPERATION = 0x40000017,
+ STREAM_LIMIT_EXCEEDED = 0x40000018,
+ CONNECTION_ABANDONED = 0x40000019,
+ CALLBACK_ALREADY_INSTALLED = 0x4000001A,
+ KNOB_FRAME_UNSUPPORTED = 0x4000001B,
 };
 
 enum class QuicNodeType : bool {
-  Client,
-  Server,
+ Client,
+ Server,
 };
 
 enum class QuicVersion : uint32_t {
-  VERSION_NEGOTIATION = 0x00000000,
-  MVFST_D24 = 0xfaceb001,
-  // Before updating the MVFST version, please check
-  // QuicTransportBase::isKnobSupported() and make sure that knob support is not
-  // broken.
-  MVFST = 0xfaceb002,
-  QUIC_DRAFT_LEGACY = 0xff00001b, // Draft-27
-  QUIC_DRAFT = 0xff00001d, // Draft-29
-  MVFST_EXPERIMENTAL = 0xfaceb00e, // Experimental alias for MVFST
-  MVFST_INVALID = 0xfaceb00f,
+ VERSION_NEGOTIATION = 0x00000000,
+ MVFST_D24 = 0xfaceb001,
+ // Before updating the MVFST version, please check
+ // QuicTransportBase::isKnobSupported() and make sure that knob support is not
+ // broken.
+ MVFST = 0xfaceb002,
+ QUIC_DRAFT_LEGACY = 0xff00001b, // Draft-27
+ QUIC_DRAFT = 0xff00001d, // Draft-29
+ MVFST_EXPERIMENTAL = 0xfaceb00e, // Experimental alias for MVFST
+ MVFST_INVALID = 0xfaceb00f,
 };
 
 using QuicVersionType = std::underlying_type<QuicVersion>::type;
 
 /**
- * Parameter ids for private transport parameter
- */
+* Parameter ids for private transport parameter
+*/
 
 constexpr uint16_t kD6DBasePMTUParameterId = 0xFF77;
 
@@ -273,10 +273,10 @@ constexpr uint32_t kDrainFactor = 3;
 
 // batching mode
 enum class QuicBatchingMode : uint32_t {
-  BATCHING_MODE_NONE = 0,
-  BATCHING_MODE_GSO = 1,
-  BATCHING_MODE_SENDMMSG = 2,
-  BATCHING_MODE_SENDMMSG_GSO = 3,
+ BATCHING_MODE_NONE = 0,
+ BATCHING_MODE_GSO = 1,
+ BATCHING_MODE_SENDMMSG = 2,
+ BATCHING_MODE_SENDMMSG_GSO = 3,
 };
 
 QuicBatchingMode getQuicBatchingMode(uint32_t val);
@@ -332,19 +332,19 @@ constexpr folly::StringPiece kCongestionControlCcpStr = "ccp";
 
 constexpr DurationRep kPersistentCongestionThreshold = 3;
 enum class CongestionControlType : uint8_t {
-  Cubic,
-  NewReno,
-  Copa,
-  Copa2,
-  BBR,
-  CCP,
-  None,
-  // NOTE: MAX should always be at the end
-  MAX
+ Cubic,
+ NewReno,
+ Copa,
+ Copa2,
+ BBR,
+ CCP,
+ None,
+ // NOTE: MAX should always be at the end
+ MAX
 };
 folly::StringPiece congestionControlTypeToString(CongestionControlType type);
 folly::Optional<CongestionControlType> congestionControlStrToType(
-    folly::StringPiece str);
+   folly::StringPiece str);
 
 // This is an approximation of a small enough number for cwnd to be blocked.
 constexpr size_t kBlockedSizeBytes = 20;
@@ -388,7 +388,7 @@ constexpr uint8_t kDefaultEmulatedConnection = 2;
 constexpr float kDefaultLastMaxReductionFactor = 0.85f;
 // Factor to control TCP estimate cwnd increase after Ack.
 constexpr float kCubicTCPFriendlyEstimateIncreaseFactor =
-    3 * (1 - kDefaultCubicReductionFactor) / (1 + kDefaultCubicReductionFactor);
+   3 * (1 - kDefaultCubicReductionFactor) / (1 + kDefaultCubicReductionFactor);
 
 /* Flow Control */
 // Default flow control window for HTTP/2 + 1K for headers
@@ -472,7 +472,7 @@ constexpr uint16_t kMinStatelessPacketSize = 22 + kMinSelfConnectionIdV1Size;
 constexpr std::chrono::milliseconds kHappyEyeballsV4Delay = 100ms;
 
 constexpr std::chrono::milliseconds kHappyEyeballsConnAttemptDelayWithCache =
-    15s;
+   15s;
 
 constexpr size_t kMaxNumTokenSourceAddresses = 3;
 
@@ -502,67 +502,67 @@ constexpr uint64_t kMaxPacketNumber = (1ull << 62) - 1;
 constexpr uint32_t kMaxInitialPacketNum = 0xffffff;
 
 enum class ZeroRttSourceTokenMatchingPolicy : uint8_t {
-  REJECT_IF_NO_EXACT_MATCH = 0,
-  LIMIT_IF_NO_EXACT_MATCH = 1,
-  // T33014230 Subnet matching
-  // REJECT_IF_NO_SUBNECT_MATCH,
-  // LIMIT_IF_NO_EXACT_MATCH
+ REJECT_IF_NO_EXACT_MATCH = 0,
+ LIMIT_IF_NO_EXACT_MATCH = 1,
+ // T33014230 Subnet matching
+ // REJECT_IF_NO_SUBNECT_MATCH,
+ // LIMIT_IF_NO_EXACT_MATCH
 };
 
 inline folly::StringPiece nodeToString(QuicNodeType node) {
-  if (node == QuicNodeType::Client) {
-    return "Client";
-  } else {
-    return "Server";
-  }
+ if (node == QuicNodeType::Client) {
+   return "Client";
+ } else {
+   return "Server";
+ }
 }
 
 template <class T>
 inline std::ostream& operator<<(std::ostream& os, const std::vector<T>& v) {
-  for (auto it = v.cbegin(); it != v.cend(); ++it) {
-    os << *it;
-    if (std::next(it) != v.cend()) {
-      os << ",";
-    }
-  }
-  return os;
+ for (auto it = v.cbegin(); it != v.cend(); ++it) {
+   os << *it;
+   if (std::next(it) != v.cend()) {
+     os << ",";
+   }
+ }
+ return os;
 }
 
 inline std::ostream& operator<<(std::ostream& os, const QuicVersion& v) {
-  os << static_cast<std::underlying_type<QuicVersion>::type>(v);
-  return os;
+ os << static_cast<std::underlying_type<QuicVersion>::type>(v);
+ return os;
 }
 
 enum class WriteDataReason {
-  NO_WRITE,
-  PROBES,
-  ACK,
-  CRYPTO_STREAM,
-  STREAM,
-  BLOCKED,
-  STREAM_WINDOW_UPDATE,
-  CONN_WINDOW_UPDATE,
-  SIMPLE,
-  RESET,
-  PATHCHALLENGE,
-  PING,
+ NO_WRITE,
+ PROBES,
+ ACK,
+ CRYPTO_STREAM,
+ STREAM,
+ BLOCKED,
+ STREAM_WINDOW_UPDATE,
+ CONN_WINDOW_UPDATE,
+ SIMPLE,
+ RESET,
+ PATHCHALLENGE,
+ PING,
 };
 
 enum class NoWriteReason {
-  WRITE_OK,
-  EMPTY_SCHEDULER,
-  NO_FRAME,
-  NO_BODY,
-  SOCKET_FAILURE,
+ WRITE_OK,
+ EMPTY_SCHEDULER,
+ NO_FRAME,
+ NO_BODY,
+ SOCKET_FAILURE,
 };
 
 enum class NoReadReason {
-  READ_OK,
-  TRUNCATED,
-  EMPTY_DATA,
-  RETRIABLE_ERROR,
-  NONRETRIABLE_ERROR,
-  STALE_DATA,
+ READ_OK,
+ TRUNCATED,
+ EMPTY_DATA,
+ RETRIABLE_ERROR,
+ NONRETRIABLE_ERROR,
+ STALE_DATA,
 };
 
 folly::StringPiece writeDataReasonString(WriteDataReason reason);
@@ -570,28 +570,28 @@ folly::StringPiece writeNoWriteReasonString(NoWriteReason reason);
 folly::StringPiece readNoReadReasonString(NoReadReason reason);
 
 /**
- * Filter the versions that are currently supported.
- */
+* Filter the versions that are currently supported.
+*/
 std::vector<QuicVersion> filterSupportedVersions(
-    const std::vector<QuicVersion>&);
+   const std::vector<QuicVersion>&);
 
 /**
- * Represent the different encryption levels used by QUIC.
- */
+* Represent the different encryption levels used by QUIC.
+*/
 enum class EncryptionLevel : uint8_t {
-  Initial,
-  Handshake,
-  EarlyData,
-  AppData,
+ Initial,
+ Handshake,
+ EarlyData,
+ AppData,
 };
 
 /**
- * This is a temporary type used during our data path experiment. It  may not
- * exist for long time.
- */
+* This is a temporary type used during our data path experiment. It  may not
+* exist for long time.
+*/
 enum class DataPathType : uint8_t {
-  ChainedMemory = 0,
-  ContinuousMemory = 1,
+ ChainedMemory = 0,
+ ContinuousMemory = 1,
 };
 
 // Stream priority level, can only be in [0, 7]
