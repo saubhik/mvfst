@@ -43,6 +43,7 @@ DEFINE_string(congestion, "newreno", "newreno/cubic/bbr/ccp/none");
 DEFINE_string(ccp_config, "", "Additional args to pass to ccp");
 DEFINE_bool(pacing, false, "Enable pacing");
 DEFINE_bool(gso, false, "Enable GSO writes to the socket");
+DEFINE_uint32(max_batch_size, 16, "GSO batch size");
 DEFINE_uint32(
     client_transport_timer_resolution_ms,
     1,
@@ -466,7 +467,7 @@ class TPerfServer {
     }
     if (gso) {
       settings.batchingMode = QuicBatchingMode::BATCHING_MODE_GSO;
-      settings.maxBatchSize = 16;
+      settings.maxBatchSize = FLAGS_max_batch_size;
     }
     settings.maxRecvPacketSize = maxReceivePacketSize;
     settings.canIgnorePathMTU = !FLAGS_d6d_enabled;
@@ -678,7 +679,7 @@ class TPerfClient : public quic::QuicSocket::ConnectionCallback,
     }
     if (gso_) {
       settings.batchingMode = QuicBatchingMode::BATCHING_MODE_GSO;
-      settings.maxBatchSize = 16;
+      settings.maxBatchSize = FLAGS_max_batch_size;
     }
     settings.maxRecvPacketSize = maxReceivePacketSize_;
     settings.canIgnorePathMTU = !FLAGS_d6d_enabled;
