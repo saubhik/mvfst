@@ -10,6 +10,11 @@
 
 #include <folly/ScopeGuard.h>
 
+#if PROFILING_ENABLED
+namespace {
+std::unordered_map<std::string, uint64_t> totElapsed;
+}
+#endif
 namespace quic {
 using namespace std::chrono_literals;
 
@@ -34,12 +39,26 @@ void FunctionLooper::setPacingFunction(
 }
 
 void FunctionLooper::commonLoopBody(bool fromTimer) noexcept {
+#if PROFILING_ENABLED
+  uint64_t st = microtime();
+#endif
   inLoopBody_ = true;
   SCOPE_EXIT {
     inLoopBody_ = false;
   };
   auto hasBeenRunning = running_;
+#if PROFILING_ENABLED
+  totElapsed["commonLoopBody-1"] += microtime() - st;
+  VLOG_EVERY_N(1, 100000) << "quic::FunctionLooper::commonLoopBody() PART 1"
+                          << " tot = "
+                          << totElapsed["commonLoopBody-1"]
+                          << " micros"
+                          << (totElapsed["commonLoopBody-1"] = 0);
+#endif
   func_(fromTimer);
+#if PROFILING_ENABLED
+  st = microtime();
+#endif
   // callback could cause us to stop ourselves.
   // Someone could have also called run() in the callback.
   VLOG(10) << __func__ << ": " << type_ << " fromTimer=" << fromTimer
@@ -50,6 +69,14 @@ void FunctionLooper::commonLoopBody(bool fromTimer) noexcept {
   if (!schedulePacingTimeout(fromTimer)) {
     evb_->runInLoop(this);
   }
+#if PROFILING_ENABLED
+  totElapsed["commonLoopBody-2"] += microtime() - st;
+  VLOG_EVERY_N(1, 100000) << "quic::FunctionLooper::commonLoopBody() PART 2"
+                          << " tot = "
+                          << totElapsed["commonLoopBody-2"]
+                          << " micros"
+                          << (totElapsed["commonLoopBody-2"] = 0);
+#endif
 }
 
 bool FunctionLooper::schedulePacingTimeout(bool /* fromTimer */) noexcept {
@@ -64,7 +91,18 @@ bool FunctionLooper::schedulePacingTimeout(bool /* fromTimer */) noexcept {
 }
 
 void FunctionLooper::runLoopCallback() noexcept {
+#if PROFILING_ENABLED
+  uint64_t st = microtime();
+#endif
   folly::DelayedDestruction::DestructorGuard dg(this);
+#if PROFILING_ENABLED
+  totElapsed["runLoopCallback"] += microtime() - st;
+  VLOG_EVERY_N(1, 100000) << "quic::FunctionLooper::runLoopCallback()"
+                          << " tot = "
+                          << totElapsed["runLoopCallback"]
+                          << " micros"
+                          << (totElapsed["runLoopCallback"] = 0);
+#endif
   commonLoopBody(false);
 }
 

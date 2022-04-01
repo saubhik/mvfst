@@ -109,6 +109,9 @@ if [[ ! -z "${MVFST_FOLLY_USE_JEMALLOC-}" ]]; then
   CMAKE_EXTRA_ARGS+=(-DFOLLY_USE_JEMALLOC=0)
 fi
 
+# Make this 0 to not compile profiling code.
+CMAKE_EXTRA_ARGS+=(-DCMAKE_CXX_FLAGS="-DPROFILING_ENABLED=0")
+
 # Default to parallel build width of 4.
 # If we have "nproc", use that to get a better value.
 # If not, then intentionally go a bit conservative and

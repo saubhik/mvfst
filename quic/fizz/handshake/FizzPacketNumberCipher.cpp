@@ -53,12 +53,14 @@ void Aes256PacketNumberCipher::setKey(folly::ByteRange key) {
 
 HeaderProtectionMask Aes128PacketNumberCipher::mask(
     folly::ByteRange sample) const {
-  return maskImpl(encryptCtx_, sample);
+  return HeaderProtectionMask{};
+  // return maskImpl(encryptCtx_, sample);
 }
 
 HeaderProtectionMask Aes256PacketNumberCipher::mask(
     folly::ByteRange sample) const {
-  return maskImpl(encryptCtx_, sample);
+  return HeaderProtectionMask{};
+  // return maskImpl(encryptCtx_, sample);
 }
 
 constexpr size_t kAES128KeyLength = 16;

@@ -23,7 +23,9 @@
 #include <quic/state/SimpleFrameFunctions.h>
 
 namespace {
-
+#if PROFILING_ENABLED
+std::unordered_map<std::string, uint64_t> totElapsed;
+#endif
 /*
  *  Check whether crypto has pending data.
  */
@@ -104,6 +106,9 @@ uint64_t writeQuicDataToSocketImpl(
     QuicVersion version,
     uint64_t packetLimit,
     bool exceptCryptoStream) {
+#if PROFILING_ENABLED
+  uint64_t st = microtime();
+#endif
   auto builder = ShortHeaderBuilder();
   // TODO: In FrameScheduler, Retx is prioritized over new data. We should
   // add a flag to the Scheduler to control the priority between them and see
@@ -160,6 +165,14 @@ uint64_t writeQuicDataToSocketImpl(
     schedulerBuilder.cryptoFrames();
   }
   FrameScheduler scheduler = std::move(schedulerBuilder).build();
+#if PROFILING_ENABLED
+  totElapsed["writeQuicDataToSocketImpl"] += microtime() - st;
+  VLOG_EVERY_N(1, 100000) << "(anon)::writeQuicDataToSocketImpl()"
+                          << " tot = "
+                          << totElapsed["writeQuicDataToSocketImpl"]
+                          << " micros"
+                          << (totElapsed["writeQuicDataToSocketImpl"] = 0);
+#endif
   written += writeConnectionDataToSocket(
       sock,
       connection,
@@ -193,6 +206,9 @@ DataPathResult continuousMemoryBuildScheduleEncrypt(
     IOBufQuicBatch& ioBufBatch,
     const Aead& aead,
     const PacketNumberCipher& headerCipher) {
+#if PROFILING_ENABLED
+  uint64_t st = microtime();
+#endif
   auto buf = connection.bufAccessor->obtain();
   auto prevSize = buf->length();
   connection.bufAccessor->release(std::move(buf));
@@ -211,8 +227,26 @@ DataPathResult continuousMemoryBuildScheduleEncrypt(
       getAckState(connection, pnSpace).largestAckedByPeer.value_or(0));
   pktBuilder.accountForCipherOverhead(cipherOverhead);
   CHECK(scheduler.hasData());
+#if PROFILING_ENABLED
+  totElapsed["continuousMemoryBuildScheduleEncrypt-1"] += microtime() - st;
+  VLOG_EVERY_N(1, 100000) << "(anon)::continuousMemoryBuildScheduleEncrypt() PART 1"
+                          << " tot = "
+                          << totElapsed["continuousMemoryBuildScheduleEncrypt-1"]
+                          << " micros"
+                          << (totElapsed["continuousMemoryBuildScheduleEncrypt-1"] = 0);
+  st = microtime();
+#endif
   auto result =
       scheduler.scheduleFramesForPacket(std::move(pktBuilder), writableBytes);
+#if PROFILING_ENABLED
+  totElapsed["continuousMemoryBuildScheduleEncrypt-2"] += microtime() - st;
+  VLOG_EVERY_N(1, 100000) << "(anon)::continuousMemoryBuildScheduleEncrypt() PART 2"
+                          << " tot = "
+                          << totElapsed["continuousMemoryBuildScheduleEncrypt-2"]
+                          << " micros"
+                          << (totElapsed["continuousMemoryBuildScheduleEncrypt-2"] = 0);
+  st = microtime();
+#endif
   CHECK(connection.bufAccessor->ownsBuffer());
   auto& packet = result.packet;
   if (!packet || packet->packet.frames.empty()) {
@@ -244,9 +278,27 @@ DataPathResult continuousMemoryBuildScheduleEncrypt(
   // Trim off everything before the current packet, and the header length, so
   // buf's data starts from the body part of buf.
   buf->trimStart(prevSize + headerLen);
+#if PROFILING_ENABLED
+  totElapsed["continuousMemoryBuildScheduleEncrypt-3"] += microtime() - st;
+  VLOG_EVERY_N(1, 100000) << "(anon)::continuousMemoryBuildScheduleEncrypt() PART 3"
+                          << " tot = "
+                          << totElapsed["continuousMemoryBuildScheduleEncrypt-3"]
+                          << " micros"
+                          << (totElapsed["continuousMemoryBuildScheduleEncrypt-3"] = 0);
+  st = microtime();
+#endif
   // buf and packetBuf is actually the same.
   auto packetBuf =
       aead.inplaceEncrypt(std::move(buf), packet->header.get(), packetNum);
+#if PROFILING_ENABLED
+  totElapsed["continuousMemoryBuildScheduleEncrypt-4"] += microtime() - st;
+  VLOG_EVERY_N(1, 100000) << "(anon)::continuousMemoryBuildScheduleEncrypt() PART 4"
+                          << " tot = "
+                          << totElapsed["continuousMemoryBuildScheduleEncrypt-4"]
+                          << " micros"
+                          << (totElapsed["continuousMemoryBuildScheduleEncrypt-4"] = 0);
+  st = microtime();
+#endif
   CHECK(packetBuf->headroom() == headerLen + prevSize);
   // Include header back.
   packetBuf->prepend(headerLen);
@@ -272,6 +324,14 @@ DataPathResult continuousMemoryBuildScheduleEncrypt(
     LOG_EVERY_N(ERROR, 5000)
         << "Quic sending pkt larger than limit, encodedSize=" << encodedSize;
   }
+#endif
+#if PROFILING_ENABLED
+  totElapsed["continuousMemoryBuildScheduleEncrypt-5"] += microtime() - st;
+  VLOG_EVERY_N(1, 100000) << "(anon)::continuousMemoryBuildScheduleEncrypt() PART 5"
+                          << " tot = "
+                          << totElapsed["continuousMemoryBuildScheduleEncrypt-5"]
+                          << " micros"
+                          << (totElapsed["continuousMemoryBuildScheduleEncrypt-5"] = 0);
 #endif
   // TODO: I think we should add an API that doesn't need a buffer.
   bool ret = ioBufBatch.write(nullptr /* no need to pass buf */, encodedSize);
@@ -1269,6 +1329,9 @@ uint64_t writeConnectionDataToSocket(
     const PacketNumberCipher& headerCipher,
     QuicVersion version,
     const std::string& token) {
+#if PROFILING_ENABLED
+  uint64_t st = microtime();
+#endif
   VLOG(10) << nodeToString(connection.nodeType)
            << " writing data using scheduler=" << scheduler.name() << " "
            << connection;
@@ -1302,9 +1365,20 @@ uint64_t writeConnectionDataToSocket(
           QuicBatchingMode::BATCHING_MODE_NONE
       ? connection.transportSettings.writeConnectionDataPacketsLimit
       : connection.transportSettings.maxBatchSize;
+#if PROFILING_ENABLED
+  totElapsed["writeConnectionDataToSocket-1"] += microtime() - st;
+  VLOG_EVERY_N(1, 10000) << "quic::writeConnectionDataToSocket() PART 1"
+                         << " tot = "
+                         << totElapsed["writeConnectionDataToSocket-1"]
+                         << " micros"
+                         << (totElapsed["writeConnectionDataToSocket-1"] = 0);
+#endif
   while (scheduler.hasData() && ioBufBatch.getPktSent() < packetLimit &&
          ((ioBufBatch.getPktSent() < batchSize) ||
           writeLoopTimeLimit(writeLoopBeginTime, connection))) {
+#if PROFILING_ENABLED
+    st = microtime();
+#endif
     auto packetNum = getNextPacketNum(connection, pnSpace);
     auto header = builder(srcConnId, dstConnId, packetNum, version, token);
     uint32_t writableBytes = folly::to<uint32_t>(std::min<uint64_t>(
@@ -1321,6 +1395,14 @@ uint64_t writeConnectionDataToSocket(
         connection.transportSettings.dataPathType == DataPathType::ChainedMemory
         ? iobufChainBasedBuildScheduleEncrypt
         : continuousMemoryBuildScheduleEncrypt;
+#if PROFILING_ENABLED
+    totElapsed["writeConnectionDataToSocket-2"] += microtime() - st;
+    VLOG_EVERY_N(1, 100000) << "quic::writeConnectionDataToSocket() PART 2"
+                            << " tot = "
+                            << totElapsed["writeConnectionDataToSocket-2"]
+                            << " micros"
+                            << (totElapsed["writeConnectionDataToSocket-2"] = 0);
+#endif
     auto ret = dataPlainFunc(
         connection,
         std::move(header),
@@ -1332,7 +1414,9 @@ uint64_t writeConnectionDataToSocket(
         ioBufBatch,
         aead,
         headerCipher);
-
+#if PROFILING_ENABLED
+    st = microtime();
+#endif
     if (!ret.buildSuccess) {
       return ioBufBatch.getPktSent();
     }
@@ -1360,8 +1444,18 @@ uint64_t writeConnectionDataToSocket(
       }
       return ioBufBatch.getPktSent();
     }
+#if PROFILING_ENABLED
+    totElapsed["writeConnectionDataToSocket-3"] += microtime() - st;
+    VLOG_EVERY_N(1, 100000) << "quic::writeConnectionDataToSocket() PART 3"
+                            << " tot = "
+                            << totElapsed["writeConnectionDataToSocket-3"]
+                            << " micros"
+                            << (totElapsed["writeConnectionDataToSocket-3"] = 0);
+#endif
   }
-
+#if PROFILING_ENABLED
+  st = microtime();
+#endif
   ioBufBatch.flush();
   if (connection.transportSettings.dataPathType ==
       DataPathType::ContinuousMemory) {
@@ -1370,6 +1464,14 @@ uint64_t writeConnectionDataToSocket(
     CHECK(buf->length() == 0 && buf->headroom() == 0);
     connection.bufAccessor->release(std::move(buf));
   }
+#if PROFILING_ENABLED
+  totElapsed["writeConnectionDataToSocket-4"] += microtime() - st;
+  VLOG_EVERY_N(1, 10000) << "quic::writeConnectionDataToSocket() PART 4"
+                         << " tot = "
+                         << totElapsed["writeConnectionDataToSocket-4"]
+                         << " micros"
+                         << (totElapsed["writeConnectionDataToSocket-4"] = 0);
+#endif
   return ioBufBatch.getPktSent();
 }
 

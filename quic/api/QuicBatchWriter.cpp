@@ -15,6 +15,9 @@
 #endif
 
 namespace {
+#if PROFILING_ENABLED
+std::unordered_map<std::string, uint64_t> totElapsed;
+#endif
 // There is a known problem in the CloningScheduler that it may write a packet
 // that's a few bytes larger than the original packet. If the original packet is
 // a full packet, then the new packet will be larger than a full packet.
@@ -277,6 +280,9 @@ bool GSOInplacePacketBatchWriter::append(
 ssize_t GSOInplacePacketBatchWriter::write(
     folly::AsyncUDPSocket& sock,
     const folly::SocketAddress& address) {
+#if PROFILING_ENABLED
+  uint64_t st = microtime();
+#endif
   ScopedBufAccessor scopedBufAccessor(conn_.bufAccessor);
   CHECK(lastPacketEnd_);
   auto& buf = scopedBufAccessor.buf();
@@ -297,9 +303,18 @@ ssize_t GSOInplacePacketBatchWriter::write(
   }
   uint64_t diffToStart = lastPacketEnd_ - buf->data();
   buf->trimEnd(diffToEnd);
+#if PROFILING_ENABLED
+  totElapsed["write-1"] += microtime() - st;
+  VLOG_EVERY_N(1, 100000) << "quic::GSOInplacePacketBatchWriter::write() PART 1"
+                          << " tot = " << totElapsed["write-1"] << " micros"
+                          << (totElapsed["write-1"] = 0);
+#endif
   auto bytesWritten = (numPackets_ > 1)
       ? sock.writeGSO(address, buf, static_cast<int>(prevSize_))
       : sock.write(address, buf);
+#if PROFILING_ENABLED
+  st = microtime();
+#endif
   /**
    * If there is one more bytes after lastPacketEnd_, that means there is a
    * packet we choose not to write in this batch (e.g., it has a size larger
@@ -326,6 +341,12 @@ ssize_t GSOInplacePacketBatchWriter::write(
     buf->clear();
   }
   reset();
+#if PROFILING_ENABLED
+  totElapsed["write-2"] += microtime() - st;
+  VLOG_EVERY_N(1, 100000) << "quic::GSOInplacePacketBatchWriter::write() PART 2"
+                          << " tot = " << totElapsed["write-2"] << " micros"
+                          << (totElapsed["write-2"] = 0);
+#endif
   return bytesWritten;
 }
 
