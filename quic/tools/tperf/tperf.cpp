@@ -123,6 +123,9 @@ namespace quic {
 namespace tperf {
 
 namespace {
+#if PROFILING_ENABLED
+std::unordered_map<std::string, uint64_t> totElapsed;
+#endif
 
 ProbeSizeRaiserType parseRaiserType(uint32_t type) {
   auto maybeRaiserType = static_cast<ProbeSizeRaiserType>(type);
@@ -321,6 +324,9 @@ class ServerStreamHandler : public quic::QuicSocket::ConnectionCallback,
 
   void onStreamWriteReady(quic::StreamId id, uint64_t maxToSend) noexcept
   override {
+#if PROFILING_ENABLED
+    uint64_t st = microtime();
+#endif
     bool eof = false;
     uint64_t toSend = maxToSend;
     if (maxBytesPerStream_ > 0) {
@@ -337,7 +343,18 @@ class ServerStreamHandler : public quic::QuicSocket::ConnectionCallback,
       curBuf->append(curBuf->capacity());
       curBuf = curBuf->next();
     } while (curBuf != buf.get());
+#if PROFILING_ENABLED
+    totElapsed["onStreamWriteReady-1"] += microtime() - st;
+    VLOG_EVERY_N(1, 10000) << "tperf::ServerStreamHandler::onStreamWriteReady() PART 1"
+                           << " tot = "
+                           << totElapsed["onStreamWriteReady-1"]
+                           << " micros"
+                           << (totElapsed["onStreamWriteReady-1"] = 0);
+#endif
     auto res = sock_->writeChain(id, std::move(buf), eof, nullptr);
+#if PROFILING_ENABLED
+    st = microtime();
+#endif
     if (res.hasError()) {
       LOG(FATAL) << "Got error on write: " << quic::toString(res.error());
     }
@@ -347,6 +364,14 @@ class ServerStreamHandler : public quic::QuicSocket::ConnectionCallback,
       bytesPerStream_.erase(id);
       createNewStream();
     }
+#if PROFILING_ENABLED
+    totElapsed["onStreamWriteReady-2"] += microtime() - st;
+    VLOG_EVERY_N(1, 10000) << "tperf::ServerStreamHandler::onStreamWriteReady() PART 2"
+                           << " tot = "
+                           << totElapsed["onStreamWriteReady-2"]
+                           << " micros"
+                           << (totElapsed["onStreamWriteReady-2"] = 0);
+#endif
   }
 
   void onStreamWriteError(
@@ -445,7 +470,6 @@ class TPerfServer {
         port_(port),
         acceptObserver_(std::make_unique<TPerfAcceptObserver>()),
         server_(QuicServer::createQuicServer()) {
-    eventBase_.setName("tperf_server");
     server_->setQuicServerTransportFactory(
         std::make_unique<TPerfServerTransportFactory>(
             blockSize, numStreams, maxBytesPerStream));
@@ -506,13 +530,12 @@ class TPerfServer {
       server_->addAcceptObserver(evb, acceptObserver_.get());
     }
     LOG(INFO) << "tperf server started at: " << addr1.describe();
-    eventBase_.loopForever();
+    while (true);
   }
 
  private:
   std::string host_;
   uint16_t port_;
-  folly::EventBase eventBase_;
   std::unique_ptr<TPerfAcceptObserver> acceptObserver_;
   std::shared_ptr<quic::QuicServer> server_;
   quic::QuicCcpThreadLauncher quicCcpThreadLauncher_;

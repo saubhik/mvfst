@@ -25,6 +25,11 @@
 #include <quic/state/SimpleFrameFunctions.h>
 #include <quic/state/stream/StreamSendHandlers.h>
 
+#if PROFILING_ENABLED
+namespace {
+std::unordered_map<std::string, uint64_t> totElapsed;
+}
+#endif
 namespace quic {
 
 QuicTransportBase::QuicTransportBase(
@@ -1859,6 +1864,9 @@ QuicTransportBase::notifyPendingWriteOnStream(StreamId id, WriteCallback* wcb) {
     }
   }
   runOnEvbAsync([id](auto self) {
+#if PROFILING_ENABLED
+    uint64_t st = microtime();
+#endif
     auto wcbIt = self->pendingWriteCallbacks_.find(id);
     if (wcbIt == self->pendingWriteCallbacks_.end()) {
       // the connection was probably closed.
@@ -1881,6 +1889,14 @@ QuicTransportBase::notifyPendingWriteOnStream(StreamId id, WriteCallback* wcb) {
     auto maxCanWrite = self->maxWritableOnStream(*stream);
     if (maxCanWrite != 0) {
       self->pendingWriteCallbacks_.erase(wcbIt);
+#if PROFILING_ENABLED
+      totElapsed["notifyPendingWriteOnStream"] += microtime() - st;
+      VLOG_EVERY_N(1, 10000) << "QuicTransportBase::notifyPendingWriteOnStream()"
+                             << " tot = "
+                             << totElapsed["notifyPendingWriteOnStream"]
+                             << " micros"
+                             << (totElapsed["notifyPendingWriteOnStream"] = 0);
+#endif
       writeCallback->onStreamWriteReady(id, maxCanWrite);
     }
   });
@@ -1906,6 +1922,9 @@ QuicSocket::WriteResult QuicTransportBase::writeChain(
     Buf data,
     bool eof,
     DeliveryCallback* cb) {
+#if PROFILING_ENABLED
+  uint64_t st = microtime();
+#endif
   if (isReceivingStream(conn_->nodeType, id)) {
     return folly::makeUnexpected(LocalErrorCode::INVALID_OPERATION);
   }
@@ -1938,12 +1957,27 @@ QuicSocket::WriteResult QuicTransportBase::writeChain(
       wasAppLimitedOrIdle = conn_->congestionController->isAppLimited();
       wasAppLimitedOrIdle |= conn_->streamManager->isAppIdle();
     }
+#if PROFILING_ENABLED
+    totElapsed["writeChain-1"] += microtime() - st;
+    VLOG_EVERY_N(1, 10000) << "quic::QuicTransportBase::writeChain() PART 1"
+                           << " tot = " << totElapsed["writeChain-1"]
+                           << " micros" << (totElapsed["writeChain-1"] = 0);
+#endif
     writeDataToQuicStream(*stream, std::move(data), eof);
+#if PROFILING_ENABLED
+    st = microtime();
+#endif
     // If we were previously app limited restart pacing with the current rate.
     if (wasAppLimitedOrIdle && conn_->pacer) {
       conn_->pacer->reset();
     }
     updateWriteLooper(true);
+#if PROFILING_ENABLED
+    totElapsed["writeChain-2"] += microtime() - st;
+    VLOG_EVERY_N(1, 10000) << "quic::QuicTransportBase::writeChain() PART 2"
+                           << " tot = " << totElapsed["writeChain-2"]
+                           << " micros" << (totElapsed["writeChain-2"] = 0);
+#endif
   } catch (const QuicTransportException& ex) {
     VLOG(4) << __func__ << " streamId=" << id << " " << ex.what() << " "
             << *this;
@@ -2672,6 +2706,9 @@ QuicConnectionStats QuicTransportBase::getConnectionsStats() const {
 }
 
 void QuicTransportBase::writeSocketData() {
+#if PROFILING_ENABLED
+  uint64_t st = microtime();
+#endif
   if (socket_) {
     // record this invocation of a new write to the socket
     ++(conn_->writeCount);
@@ -2687,7 +2724,18 @@ void QuicTransportBase::writeSocketData() {
       }
       conn_->waitingForAppData = false;
     }
+#if PROFILING_ENABLED
+    totElapsed["writeSocketData-1"] += microtime() - st;
+    VLOG_EVERY_N(1, 10000) << "quic::QuicTransportBase::writeSocketData() PART 1"
+                           << " tot = "
+                           << totElapsed["writeSocketData-1"]
+                           << " micros"
+                           << (totElapsed["writeSocketData-1"] = 0);
+#endif
     writeData();
+#if PROFILING_ENABLED
+    st = microtime();
+#endif
     if (closeState_ != CloseState::CLOSED) {
       if (conn_->pendingEvents.closeTransport == true) {
         throw QuicTransportException(
@@ -2754,7 +2802,18 @@ void QuicTransportBase::writeSocketData() {
         conn_->waitingForAppData = true;
       }
     }
+#if PROFILING_ENABLED
+    totElapsed["writeSocketData-2"] += microtime() - st;
+    VLOG_EVERY_N(1, 10000) << "quic::QuicTransportBase::writeSocketData() PART 2"
+                           << " tot = "
+                           << totElapsed["writeSocketData-2"]
+                           << " micros"
+                           << (totElapsed["writeSocketData-2"] = 0);
+#endif
   }
+#if PROFILING_ENABLED
+  st = microtime();
+#endif
   // Writing data could write out an ack which could cause us to cancel
   // the ack timer. But we need to call scheduleAckTimeout() for it to take
   // effect.
@@ -2764,12 +2823,34 @@ void QuicTransportBase::writeSocketData() {
   // probe timeout
   scheduleD6DProbeTimeout();
   updateWriteLooper(false);
+#if PROFILING_ENABLED
+  totElapsed["writeSocketData-3"] += microtime() - st;
+  VLOG_EVERY_N(1, 10000) << "quic::QuicTransportBase::writeSocketData() PART 3"
+                         << " tot = "
+                         << totElapsed["writeSocketData-3"]
+                         << " micros"
+                         << (totElapsed["writeSocketData-3"] = 0);
+#endif
 }
 
 void QuicTransportBase::writeSocketDataAndCatch() {
+#if PROFILING_ENABLED
+  uint64_t st = microtime();
+#endif
   FOLLY_MAYBE_UNUSED auto self = sharedGuard();
   try {
+#if PROFILING_ENABLED
+    totElapsed["writeSocketDataAndCatch-1"] += microtime() - st;
+    VLOG_EVERY_N(1, 10000) << "quic::QuicTransportBase::writeSocketDataAndCatch() PART 1"
+                           << " tot = "
+                           << totElapsed["writeSocketDataAndCatch-1"]
+                           << " micros"
+                           << (totElapsed["writeSocketDataAndCatch-1"] = 0);
+#endif
     writeSocketData();
+#if PROFILING_ENABLED
+    st = microtime();
+#endif
     processCallbacksAfterWriteData();
   } catch (const QuicTransportException& ex) {
     VLOG(4) << __func__ << ex.what() << " " << *this;
@@ -2790,6 +2871,14 @@ void QuicTransportBase::writeSocketDataAndCatch() {
         QuicErrorCode(TransportErrorCode::INTERNAL_ERROR),
         std::string("writeSocketDataAndCatch()  error")));
   }
+#if PROFILING_ENABLED
+  totElapsed["writeSocketDataAndCatch-2"] += microtime() - st;
+  VLOG_EVERY_N(1, 10000) << "quic::QuicTransportBase::writeSocketDataAndCatch() PART 2"
+                         << " tot = "
+                         << totElapsed["writeSocketDataAndCatch-2"]
+                         << " micros"
+                         << (totElapsed["writeSocketDataAndCatch-2"] = 0);
+#endif
 }
 
 void QuicTransportBase::setTransportSettings(
@@ -3029,6 +3118,9 @@ void QuicTransportBase::runOnEvbAsync(
 }
 
 void QuicTransportBase::pacedWriteDataToSocket(bool /* fromTimer */) {
+#if PROFILING_ENABLED
+  uint64_t st = microtime();
+#endif
   FOLLY_MAYBE_UNUSED auto self = sharedGuard();
 
   if (!isConnectionPaced(*conn_)) {
@@ -3036,6 +3128,14 @@ void QuicTransportBase::pacedWriteDataToSocket(bool /* fromTimer */) {
     // previously enabled and then gets disabled, and we are here due to a
     // timeout, we should do a normal write to flush out the residue from pacing
     // write.
+#if PROFILING_ENABLED
+    totElapsed["pacedWriteDataToSocket"] += microtime() - st;
+    VLOG_EVERY_N(1, 10000) << "quic::QuicTransportBase::pacedWriteDataToSocket()"
+                           << " tot = "
+                           << totElapsed["pacedWriteDataToSocket"]
+                           << " micros"
+                           << (totElapsed["pacedWriteDataToSocket"] = 0);
+#endif
     writeSocketDataAndCatch();
     return;
   }
@@ -3045,6 +3145,14 @@ void QuicTransportBase::pacedWriteDataToSocket(bool /* fromTimer */) {
     // The next burst is already scheduled. Since the burst size doesn't depend
     // on much data we currently have in buffer at all, no need to change
     // anything.
+#if PROFILING_ENABLED
+    totElapsed["pacedWriteDataToSocket"] += microtime() - st;
+    VLOG_EVERY_N(1, 10000) << "quic::QuicTransportBase::pacedWriteDataToSocket()"
+                           << " tot = "
+                           << totElapsed["pacedWriteDataToSocket"]
+                           << " micros"
+                           << (totElapsed["pacedWriteDataToSocket"] = 0);
+#endif
     return;
   }
 

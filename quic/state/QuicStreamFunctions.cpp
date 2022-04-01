@@ -17,6 +17,9 @@
 #include <algorithm>
 
 namespace {
+#if PROFILING_ENABLED
+std::unordered_map<std::string, uint64_t> totElapsed;
+#endif
 void prependToBuf(quic::Buf& buf, quic::Buf toAppend) {
   if (buf) {
     buf->prependChain(std::move(toAppend));
@@ -29,6 +32,9 @@ void prependToBuf(quic::Buf& buf, quic::Buf toAppend) {
 namespace quic {
 
 void writeDataToQuicStream(QuicStreamState& stream, Buf data, bool eof) {
+#if PROFILING_ENABLED
+  uint64_t st = microtime();
+#endif
   // Once data is written to writeBufMeta, no more data can be written to
   // writeBuffer.
   CHECK_EQ(0, stream.writeBufMeta.offset);
@@ -49,6 +55,14 @@ void writeDataToQuicStream(QuicStreamState& stream, Buf data, bool eof) {
   }
   updateFlowControlOnWriteToStream(stream, len);
   stream.conn.streamManager->updateWritableStreams(stream);
+#if PROFILING_ENABLED
+  totElapsed["writeDataToQuicStream"] += microtime() - st;
+  VLOG_EVERY_N(1, 10000) << "quic::writeDataToQuicStream()"
+                         << " tot = "
+                         << totElapsed["writeDataToQuicStream"]
+                         << " micros"
+                         << (totElapsed["writeDataToQuicStream"] = 0);
+#endif
 }
 
 void writeBufMetaToQuicStream(

@@ -45,6 +45,7 @@ class FunctionLooper : public folly::EventBase::LoopCallback,
 
   void runLoopCallback() noexcept override;
 
+  bool isFunctionLooper() noexcept override { return true; }
   /**
    * Starts running the loop callback in each loop iteration.
    * if this is already scheduled to run, run() will continue to run it.

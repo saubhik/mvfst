@@ -109,6 +109,9 @@ if [[ ! -z "${MVFST_FOLLY_USE_JEMALLOC-}" ]]; then
   CMAKE_EXTRA_ARGS+=(-DFOLLY_USE_JEMALLOC=0)
 fi
 
+# Make this 0 to not compile profiling code.
+CMAKE_EXTRA_ARGS+=(-DCMAKE_CXX_FLAGS="-DPROFILING_ENABLED=0")
+
 # Default to parallel build width of 4.
 # If we have "nproc", use that to get a better value.
 # If not, then intentionally go a bit conservative and
@@ -272,8 +275,7 @@ function setup_folly() {
 
   if [ ! -d "$FOLLY_DIR" ] ; then
     echo -e "${COLOR_GREEN}[ INFO ] Cloning folly (from @saubhik) ${COLOR_OFF}"
-    # git clone https://github.com/facebook/folly.git "$FOLLY_DIR"
-    git clone -b feature/finalize-network-io https://github.com/saubhik/folly.git "$FOLLY_DIR"
+    git clone -b release-QuicNIC-v0.1 https://github.com/saubhik/folly.git "$FOLLY_DIR"
     if [[ -z "${MVFST_SKIP_SYSTEM_DEPENDENCIES-}" ]]; then
       echo -e "${COLOR_GREEN}[ INFO ] install dependencies ${COLOR_OFF}"
       if [ "$Platform" = "Linux" ]; then
@@ -323,8 +325,7 @@ function setup_fizz() {
   FIZZ_BUILD_DIR=$DEPS_DIR/fizz/build/
   if [ ! -d "$FIZZ_DIR" ] ; then
     echo -e "${COLOR_GREEN}[ INFO ] Cloning fizz (from @saubhik) ${COLOR_OFF}"
-    # git clone https://github.com/facebookincubator/fizz "$FIZZ_DIR"
-    git clone -b feature/add-shenango-support https://github.com/saubhik/fizz "$FIZZ_DIR"
+    git clone -b release-QuicNIC-v0.1 https://github.com/saubhik/fizz "$FIZZ_DIR"
   fi
 
   # synch_dependency_to_commit "$FIZZ_DIR" "$MVFST_ROOT_DIR/build/deps/github_hashes/facebookincubator/fizz-rev.txt"

@@ -18,6 +18,11 @@
 
 #include <algorithm>
 
+#if PROFILING_ENABLED
+namespace {
+std::unordered_map<std::string, uint64_t> totElapsed;
+}
+#endif
 namespace quic {
 
 QuicServerTransport::QuicServerTransport(
@@ -144,6 +149,9 @@ void QuicServerTransport::accept() {
 }
 
 void QuicServerTransport::writeData() {
+#if PROFILING_ENABLED
+  uint64_t st = microtime();
+#endif
   if (!conn_->clientConnectionId && !conn_->serverConnectionId) {
     // It is possible for the server to invoke writeData() after receiving a
     // packet that could not per parsed successfully.
@@ -263,6 +271,14 @@ void QuicServerTransport::writeData() {
   }
   if (conn_->oneRttWriteCipher) {
     CHECK(conn_->oneRttWriteHeaderCipher);
+#if PROFILING_ENABLED
+    totElapsed["writeData-1"] += microtime() - st;
+    VLOG_EVERY_N(1, 10000) << "quic::QuicServerTransport::writeData()"
+                           << " tot = "
+                           << totElapsed["writeData-1"]
+                           << " micros"
+                           << (totElapsed["writeData-1"] = 0);
+#endif
     packetLimit -= writeQuicDataToSocket(
         *socket_,
         *conn_,
@@ -272,7 +288,9 @@ void QuicServerTransport::writeData() {
         *conn_->oneRttWriteHeaderCipher,
         version,
         packetLimit);
-
+#if PROFILING_ENABLED
+    st = microtime();
+#endif
     // D6D probes should be paced
     if (packetLimit && conn_->pendingEvents.d6d.sendProbePacket) {
       writeD6DProbeToSocket(
@@ -284,6 +302,14 @@ void QuicServerTransport::writeData() {
           *conn_->oneRttWriteHeaderCipher,
           version);
     }
+#if PROFILING_ENABLED
+    totElapsed["writeData-2"] += microtime() - st;
+    VLOG_EVERY_N(1, 10000) << "quic::QuicServerTransport::writeData()"
+                           << " tot = "
+                           << totElapsed["writeData-2"]
+                           << " micros"
+                           << (totElapsed["writeData-2"] = 0);
+#endif
   }
 }
 

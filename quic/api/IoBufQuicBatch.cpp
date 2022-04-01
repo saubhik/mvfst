@@ -11,6 +11,12 @@
 #include <quic/common/SocketUtil.h>
 #include <quic/happyeyeballs/QuicHappyEyeballsFunctions.h>
 
+#if PROFILING_ENABLED
+namespace {
+std::unordered_map<std::string, uint64_t> totElapsed;
+}
+#endif
+
 namespace quic {
 IOBufQuicBatch::IOBufQuicBatch(
     BatchWriterPtr&& batchWriter,
@@ -29,6 +35,9 @@ IOBufQuicBatch::IOBufQuicBatch(
 bool IOBufQuicBatch::write(
     std::unique_ptr<folly::IOBuf>&& buf,
     size_t encodedSize) {
+#if PROFILING_ENABLED
+  uint64_t st = microtime();
+#endif
   pktSent_++;
 
   // see if we need to flush the prev buffer(s)
@@ -44,6 +53,12 @@ bool IOBufQuicBatch::write(
           peerAddress_,
           threadLocal_ ? &sock_ : nullptr)) {
     // return if we get an error here
+#if PROFILING_ENABLED
+    totElapsed["write"] += microtime() - st;
+    VLOG_EVERY_N(1, 10000) << "quic::IOBufQuicBatch::write()"
+                           << " tot = " << totElapsed["write"] << " micros"
+                           << (totElapsed["write"] = 0);
+#endif
     return flush(FlushType::FLUSH_TYPE_ALWAYS);
   }
 
@@ -51,13 +66,30 @@ bool IOBufQuicBatch::write(
 }
 
 bool IOBufQuicBatch::flush(FlushType flushType) {
+#if PROFILING_ENABLED
+  uint64_t st = microtime();
+#endif
   if (threadLocal_ &&
       (flushType == FlushType::FLUSH_TYPE_ALLOW_THREAD_LOCAL_DELAY)) {
     return true;
   }
+#if PROFILING_ENABLED
+  totElapsed["flush-1"] += microtime() - st;
+  VLOG_EVERY_N(1, 10000) << "quic::IOBufQuicBatch::flush() PART 1"
+                         << " tot = " << totElapsed["flush-1"] << " micros"
+                         << (totElapsed["flush-1"] = 0);
+#endif
   bool ret = flushInternal();
+#if PROFILING_ENABLED
+  st = microtime();
+#endif
   reset();
-
+#if PROFILING_ENABLED
+  totElapsed["flush-2"] += microtime() - st;
+  VLOG_EVERY_N(1, 10000) << "quic::IOBufQuicBatch::flush() PART 2"
+                         << " tot = " << totElapsed["flush-2"] << " micros"
+                         << (totElapsed["flush-2"] = 0);
+#endif
   return ret;
 }
 
@@ -71,13 +103,26 @@ bool IOBufQuicBatch::isRetriableError(int err) {
 }
 
 bool IOBufQuicBatch::flushInternal() {
+#if PROFILING_ENABLED
+  uint64_t st = microtime();
+#endif
   if (batchWriter_->empty()) {
     return true;
   }
 
   bool written = false;
   if (happyEyeballsState_.shouldWriteToFirstSocket) {
+#if PROFILING_ENABLED
+    totElapsed["flushInternal-1"] += microtime() - st;
+    VLOG_EVERY_N(1, 10000) << "quic::IOBufQuicBatch::flushInternal() PART 1"
+                           << " tot = " << totElapsed["flushInternal-1"]
+                           << " micros"
+                           << (totElapsed["flushInternal-1"] = 0);
+#endif
     auto consumed = batchWriter_->write(sock_, peerAddress_);
+#if PROFILING_ENABLED
+    st = microtime();
+#endif
     written = (consumed >= 0);
     happyEyeballsState_.shouldWriteToFirstSocket =
         (consumed >= 0 || isRetriableError(errno));
@@ -95,13 +140,22 @@ bool IOBufQuicBatch::flushInternal() {
   }
 
   if (happyEyeballsState_.shouldWriteToSecondSocket) {
+#if PROFILING_ENABLED
+    totElapsed["flushInternal-1"] += microtime() - st;
+    VLOG_EVERY_N(1, 10000) << "quic::IOBufQuicBatch::flushInternal() PART 1"
+                           << " tot = " << totElapsed["flushInternal-1"]
+                           << " micros"
+                           << (totElapsed["flushInternal-1"] = 0);
+#endif
     // TODO: if the errno is EMSGSIZE, and we move on with the second socket,
     // we actually miss the chance to fix our UDP packet size with the first
     // socket.
     auto consumed = batchWriter_->write(
         *happyEyeballsState_.secondSocket,
         happyEyeballsState_.secondPeerAddress);
-
+#if PROFILING_ENABLED
+    st = microtime();
+#endif
     // written is marked true if either socket write succeeds
     written |= (consumed >= 0);
     happyEyeballsState_.shouldWriteToSecondSocket =
@@ -145,6 +199,13 @@ bool IOBufQuicBatch::flushInternal() {
     }
   }
 
+#if PROFILING_ENABLED
+  totElapsed["flushInternal-2"] += microtime() - st;
+  VLOG_EVERY_N(1, 10000) << "quic::IOBufQuicBatch::flushInternal() PART 2"
+                         << " tot = " << totElapsed["flushInternal-2"]
+                         << " micros"
+                         << (totElapsed["flushInternal-2"] = 0);
+#endif
   if (!written) {
     // This can happen normally, so ignore for now. Now we treat EAGAIN same
     // as a loss to avoid looping.
