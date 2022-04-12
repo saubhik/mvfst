@@ -12,6 +12,10 @@
 #include <quic/fizz/handshake/FizzCryptoFactory.h>
 #include <quic/state/QuicStreamFunctions.h>
 
+#include "net.h"
+
+#include <iostream>
+
 namespace quic {
 ServerHandshake::ServerHandshake(QuicConnectionStateBase* conn)
     : conn_(conn), actionGuard_(nullptr), cryptoState_(*conn->cryptoState) {}
@@ -323,10 +327,26 @@ class ServerHandshake::ActionMoveVisitor : public boost::static_visitor<> {
   }
 
   void operator()(fizz::SecretAvailable& secretAvailable) {
+
+    std::vector<uint8_t> *s = &secretAvailable.secret.secret;
+
+    std::cout << "Secret = ";
+    for (uint8_t i : *s)
+      std::cout << fmt::format("{:x}", std::byte(i)) << ", ";
+    std::cout << std::endl;
+
+    std::vector<uint8_t> buf(s->size()+1);
+    for (size_t i = 1; i < buf.size(); ++i)
+      buf[i] = s->at(i-1);
+
     switch (secretAvailable.secret.type.type()) {
       case fizz::SecretType::Type::EarlySecrets_E:
         switch (*secretAvailable.secret.type.asEarlySecrets()) {
           case fizz::EarlySecrets::ClientEarlyTraffic:
+            VLOG(0) << "Above secret is for ZeroRttRead";
+            buf[0] = static_cast<uint8_t>(CipherKind::ZeroRttRead);
+            rt::SendToIOKernel(
+                buf.data(), (ssize_t)(buf.size() * sizeof(uint8_t)));
             server_.computeCiphers(
                 CipherKind::ZeroRttRead,
                 folly::range(secretAvailable.secret.secret));
@@ -338,11 +358,19 @@ class ServerHandshake::ActionMoveVisitor : public boost::static_visitor<> {
       case fizz::SecretType::Type::HandshakeSecrets_E:
         switch (*secretAvailable.secret.type.asHandshakeSecrets()) {
           case fizz::HandshakeSecrets::ClientHandshakeTraffic:
+            VLOG(0) << "Above secret is for HandshakeRead";
+            buf[0] = static_cast<uint8_t>(CipherKind::HandshakeRead);
+            rt::SendToIOKernel(
+                buf.data(), (ssize_t)(buf.size() * sizeof(uint8_t)));
             server_.computeCiphers(
                 CipherKind::HandshakeRead,
                 folly::range(secretAvailable.secret.secret));
             break;
           case fizz::HandshakeSecrets::ServerHandshakeTraffic:
+            VLOG(0) << "Above secret is for HandshakeWrite";
+            buf[0] = static_cast<uint8_t>(CipherKind::HandshakeWrite);
+            rt::SendToIOKernel(
+                buf.data(), (ssize_t)(buf.size() * sizeof(uint8_t)));
             server_.computeCiphers(
                 CipherKind::HandshakeWrite,
                 folly::range(secretAvailable.secret.secret));
@@ -352,11 +380,19 @@ class ServerHandshake::ActionMoveVisitor : public boost::static_visitor<> {
       case fizz::SecretType::Type::AppTrafficSecrets_E:
         switch (*secretAvailable.secret.type.asAppTrafficSecrets()) {
           case fizz::AppTrafficSecrets::ClientAppTraffic:
+            VLOG(0) << "Above secret is for OneRttRead";
+            buf[0] = static_cast<uint8_t>(CipherKind::OneRttRead);
+            rt::SendToIOKernel(
+                buf.data(), (ssize_t)(buf.size() * sizeof(uint8_t)));
             server_.computeCiphers(
                 CipherKind::OneRttRead,
                 folly::range(secretAvailable.secret.secret));
             break;
           case fizz::AppTrafficSecrets::ServerAppTraffic:
+            VLOG(0) << "Above secret is for OneRttWrite";
+            buf[0] = static_cast<uint8_t>(CipherKind::OneRttWrite);
+            rt::SendToIOKernel(
+                buf.data(), (ssize_t)(buf.size() * sizeof(uint8_t)));
             server_.computeCiphers(
                 CipherKind::OneRttWrite,
                 folly::range(secretAvailable.secret.secret));
