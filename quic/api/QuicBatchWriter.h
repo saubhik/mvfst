@@ -64,7 +64,9 @@ class BatchWriter {
       folly::AsyncUDPSocket* sock) = 0;
   virtual ssize_t write(
       folly::AsyncUDPSocket& sock,
-      const folly::SocketAddress& address) = 0;
+      const folly::SocketAddress& address,
+      void *cipherMeta,
+      ssize_t cipherMetaLen) = 0;
 
  protected:
   folly::EventBase* evb_{nullptr};
@@ -101,7 +103,9 @@ class SinglePacketBatchWriter : public IOBufBatchWriter {
       folly::AsyncUDPSocket* /*unused*/) override;
   ssize_t write(
       folly::AsyncUDPSocket& sock,
-      const folly::SocketAddress& address) override;
+      const folly::SocketAddress& address,
+      void *ciphetMeta,
+      ssize_t cipherMetaLen) override;
 };
 
 class GSOPacketBatchWriter : public IOBufBatchWriter {
@@ -118,7 +122,9 @@ class GSOPacketBatchWriter : public IOBufBatchWriter {
       folly::AsyncUDPSocket* /*unused*/) override;
   ssize_t write(
       folly::AsyncUDPSocket& sock,
-      const folly::SocketAddress& address) override;
+      const folly::SocketAddress& address,
+      void *cipherMeta,
+      ssize_t cipherMetaLen) override;
 
  private:
   // max number of buffer chains we can accumulate before we need to flush
@@ -145,7 +151,9 @@ class GSOInplacePacketBatchWriter : public BatchWriter {
       folly::AsyncUDPSocket* sock) override;
   ssize_t write(
       folly::AsyncUDPSocket& sock,
-      const folly::SocketAddress& address) override;
+      const folly::SocketAddress& address,
+      void *cipherMeta,
+      ssize_t cipherMetaLen) override;
   bool empty() const override;
   size_t size() const override;
 
@@ -183,7 +191,9 @@ class SendmmsgPacketBatchWriter : public BatchWriter {
       folly::AsyncUDPSocket* /*unused*/) override;
   ssize_t write(
       folly::AsyncUDPSocket& sock,
-      const folly::SocketAddress& address) override;
+      const folly::SocketAddress& address,
+      void *cipherMeta,
+      ssize_t cipherMetaLen) override;
 
  private:
   // max number of buffer chains we can accumulate before we need to flush
@@ -211,7 +221,9 @@ class SendmmsgGSOPacketBatchWriter : public BatchWriter {
       folly::AsyncUDPSocket* sock) override;
   ssize_t write(
       folly::AsyncUDPSocket& sock,
-      const folly::SocketAddress& address) override;
+      const folly::SocketAddress& address,
+      void *cipherMeta,
+      ssize_t cipherMetaLen) override;
 
  private:
   // max number of buffer chains we can accumulate before we need to flush

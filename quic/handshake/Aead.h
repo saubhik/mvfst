@@ -10,6 +10,9 @@
 
 #include <folly/Optional.h>
 #include <folly/io/IOBuf.h>
+#include <fizz/crypto/aead/Aead.h>
+
+#include "timer.h"
 
 namespace quic {
 
@@ -62,5 +65,19 @@ class Aead {
    * ciphertext - size of plaintext).
    */
   virtual size_t getCipherOverhead() const = 0;
+
+  virtual const fizz::Aead* getFizzAead() const { return nullptr; }
+
+  /**
+   * Helps the IOKernel use the right Aead object for encrypting a packet.
+   */
+  uint64_t getHashIndex() const { return hashIndex; }
+  void setHashIndex() {
+    if (hashIndex) throw std::runtime_error("hashIndex already set!");
+    hashIndex = rt::MicroTime();
+  }
+
+ private:
+  uint64_t hashIndex = 0;
 };
 } // namespace quic

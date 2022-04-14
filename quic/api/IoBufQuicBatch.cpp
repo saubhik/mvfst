@@ -34,7 +34,9 @@ IOBufQuicBatch::IOBufQuicBatch(
 
 bool IOBufQuicBatch::write(
     std::unique_ptr<folly::IOBuf>&& buf,
-    size_t encodedSize) {
+    size_t encodedSize,
+    void *cipherMeta,
+    ssize_t cipherMetaLen) {
 #if PROFILING_ENABLED
   uint64_t st = microtime();
 #endif
@@ -43,7 +45,10 @@ bool IOBufQuicBatch::write(
   // see if we need to flush the prev buffer(s)
   if (batchWriter_->needsFlush(encodedSize)) {
     // continue even if we get an error here
-    flush(FlushType::FLUSH_TYPE_ALWAYS);
+    flush(
+        cipherMeta,
+        cipherMetaLen,
+        FlushType::FLUSH_TYPE_ALWAYS);
   }
 
   // try to append the new buffers
@@ -59,13 +64,19 @@ bool IOBufQuicBatch::write(
                            << " tot = " << totElapsed["write"] << " micros"
                            << (totElapsed["write"] = 0);
 #endif
-    return flush(FlushType::FLUSH_TYPE_ALWAYS);
+    return flush(
+        cipherMeta,
+        cipherMetaLen,
+        FlushType::FLUSH_TYPE_ALWAYS);
   }
 
   return true;
 }
 
-bool IOBufQuicBatch::flush(FlushType flushType) {
+bool IOBufQuicBatch::flush(
+    void *cipherMeta,
+    ssize_t cipherMetaLen,
+    FlushType flushType) {
 #if PROFILING_ENABLED
   uint64_t st = microtime();
 #endif
@@ -79,7 +90,7 @@ bool IOBufQuicBatch::flush(FlushType flushType) {
                          << " tot = " << totElapsed["flush-1"] << " micros"
                          << (totElapsed["flush-1"] = 0);
 #endif
-  bool ret = flushInternal();
+  bool ret = flushInternal(cipherMeta, cipherMetaLen);
 #if PROFILING_ENABLED
   st = microtime();
 #endif
@@ -102,7 +113,7 @@ bool IOBufQuicBatch::isRetriableError(int err) {
       err == EMSGSIZE;
 }
 
-bool IOBufQuicBatch::flushInternal() {
+bool IOBufQuicBatch::flushInternal(void *cipherMeta, ssize_t cipherMetaLen) {
 #if PROFILING_ENABLED
   uint64_t st = microtime();
 #endif
@@ -119,7 +130,11 @@ bool IOBufQuicBatch::flushInternal() {
                            << " micros"
                            << (totElapsed["flushInternal-1"] = 0);
 #endif
-    auto consumed = batchWriter_->write(sock_, peerAddress_);
+    auto consumed = batchWriter_->write(
+        sock_,
+        peerAddress_,
+        cipherMeta,
+        cipherMetaLen);
 #if PROFILING_ENABLED
     st = microtime();
 #endif
@@ -152,7 +167,9 @@ bool IOBufQuicBatch::flushInternal() {
     // socket.
     auto consumed = batchWriter_->write(
         *happyEyeballsState_.secondSocket,
-        happyEyeballsState_.secondPeerAddress);
+        happyEyeballsState_.secondPeerAddress,
+        cipherMeta,
+        cipherMetaLen);
 #if PROFILING_ENABLED
     st = microtime();
 #endif

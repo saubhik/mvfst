@@ -30,9 +30,15 @@ class IOBufQuicBatch {
   ~IOBufQuicBatch() = default;
 
   // returns true if it succeeds and false if the loop should end
-  bool write(std::unique_ptr<folly::IOBuf>&& buf, size_t encodedSize);
+  bool write(
+      std::unique_ptr<folly::IOBuf>&& buf,
+      size_t encodedSize,
+      void *cipherMeta,
+      ssize_t cipherMetaLen);
 
   bool flush(
+      void *cipherMeta,
+      ssize_t cipherMetaLen,
       FlushType flushType = FlushType::FLUSH_TYPE_ALLOW_THREAD_LOCAL_DELAY);
 
   FOLLY_ALWAYS_INLINE uint64_t getPktSent() const {
@@ -43,7 +49,7 @@ class IOBufQuicBatch {
   void reset();
 
   // flushes the internal buffers
-  bool flushInternal();
+  bool flushInternal(void *cipherMeta, ssize_t cipherMetaLen);
 
   /**
    * Returns whether or not the errno can be retried later.
