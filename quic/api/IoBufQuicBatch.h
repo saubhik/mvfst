@@ -11,6 +11,8 @@
 #include <quic/api/QuicBatchWriter.h>
 #include <quic/state/StateData.h>
 
+#include "net.h"
+
 namespace quic {
 class IOBufQuicBatch {
  public:
@@ -33,12 +35,9 @@ class IOBufQuicBatch {
   bool write(
       std::unique_ptr<folly::IOBuf>&& buf,
       size_t encodedSize,
-      void *cipherMeta,
-      ssize_t cipherMetaLen);
+      rt::CipherMeta* cipherMeta);
 
   bool flush(
-      void *cipherMeta,
-      ssize_t cipherMetaLen,
       FlushType flushType = FlushType::FLUSH_TYPE_ALLOW_THREAD_LOCAL_DELAY);
 
   FOLLY_ALWAYS_INLINE uint64_t getPktSent() const {
@@ -49,7 +48,7 @@ class IOBufQuicBatch {
   void reset();
 
   // flushes the internal buffers
-  bool flushInternal(void *cipherMeta, ssize_t cipherMetaLen);
+  bool flushInternal();
 
   /**
    * Returns whether or not the errno can be retried later.
@@ -63,6 +62,8 @@ class IOBufQuicBatch {
   QuicConnectionStateBase& conn_;
   QuicConnectionStateBase::HappyEyeballsState& happyEyeballsState_;
   uint64_t pktSent_{0};
+
+  std::vector<rt::CipherMeta*> cipherMetaVec_;
 };
 
 } // namespace quic

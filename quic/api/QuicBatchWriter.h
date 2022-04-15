@@ -65,8 +65,8 @@ class BatchWriter {
   virtual ssize_t write(
       folly::AsyncUDPSocket& sock,
       const folly::SocketAddress& address,
-      void *cipherMeta,
-      ssize_t cipherMetaLen) = 0;
+      rt::CipherMeta** cipherMetas,
+      ssize_t numCipherMetas) = 0;
 
  protected:
   folly::EventBase* evb_{nullptr};
@@ -104,8 +104,8 @@ class SinglePacketBatchWriter : public IOBufBatchWriter {
   ssize_t write(
       folly::AsyncUDPSocket& sock,
       const folly::SocketAddress& address,
-      void *ciphetMeta,
-      ssize_t cipherMetaLen) override;
+      rt::CipherMeta** cipherMetas /*unused*/,
+      ssize_t numCipherMetas /*unused*/) override;
 };
 
 class GSOPacketBatchWriter : public IOBufBatchWriter {
@@ -123,8 +123,8 @@ class GSOPacketBatchWriter : public IOBufBatchWriter {
   ssize_t write(
       folly::AsyncUDPSocket& sock,
       const folly::SocketAddress& address,
-      void *cipherMeta,
-      ssize_t cipherMetaLen) override;
+      rt::CipherMeta** cipherMetas /*unused*/,
+      ssize_t numCipherMetas /*unused*/) override;
 
  private:
   // max number of buffer chains we can accumulate before we need to flush
@@ -152,8 +152,8 @@ class GSOInplacePacketBatchWriter : public BatchWriter {
   ssize_t write(
       folly::AsyncUDPSocket& sock,
       const folly::SocketAddress& address,
-      void *cipherMeta,
-      ssize_t cipherMetaLen) override;
+      rt::CipherMeta** cipherMetas,
+      ssize_t numCipherMetas) override;
   bool empty() const override;
   size_t size() const override;
 
@@ -169,7 +169,7 @@ class GSOInplacePacketBatchWriter : public BatchWriter {
    * size, we use the following value to keep track of that next packet, and
    * checks against buffer residue after writes. The reason we cannot just check
    * the buffer residue against the Quic packet limit is that there may be some
-   * retranmission packets slightly larger than the limit.
+   * retransmission packets slightly larger than the limit.
    */
   size_t nextPacketSize_{0};
 };
@@ -192,8 +192,8 @@ class SendmmsgPacketBatchWriter : public BatchWriter {
   ssize_t write(
       folly::AsyncUDPSocket& sock,
       const folly::SocketAddress& address,
-      void *cipherMeta,
-      ssize_t cipherMetaLen) override;
+      rt::CipherMeta** cipherMetas /*unused*/,
+      ssize_t numCipherMetas /*unused*/) override;
 
  private:
   // max number of buffer chains we can accumulate before we need to flush
@@ -222,8 +222,8 @@ class SendmmsgGSOPacketBatchWriter : public BatchWriter {
   ssize_t write(
       folly::AsyncUDPSocket& sock,
       const folly::SocketAddress& address,
-      void *cipherMeta,
-      ssize_t cipherMetaLen) override;
+      rt::CipherMeta** cipherMetas /*unused*/,
+      ssize_t numCipherMetas /*unused*/) override;
 
  private:
   // max number of buffer chains we can accumulate before we need to flush

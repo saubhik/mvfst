@@ -22,7 +22,7 @@
 #include <fizz/record/Types.h>
 #include <quic/fizz/handshake/FizzBridge.h>
 
-#include <iostream>
+#include "net.h"
 
 namespace {
 #if PROFILING_ENABLED
@@ -449,18 +449,16 @@ DataPathResult continuousMemoryBuildScheduleEncrypt(
                           << (totElapsed["continuousMemoryBuildScheduleEncrypt-5"] = 0);
 #endif
 
-  auto aeadHashIndex = aead.getHashIndex();
-  auto headerCipherHashIndex = headerCipher.getHashIndex();
-  uint8_t cipherMeta[16];
-  memcpy(cipherMeta, &aeadHashIndex, 8);
-  memcpy(cipherMeta + 8, &headerCipherHashIndex, 8);
+  rt::CipherMeta* cipherMeta;
+  cipherMeta->aead_index = aead.getHashIndex();
+  cipherMeta->header_cipher_index = headerCipher.getHashIndex();
+  cipherMeta->packet_num = packetNum;
+  cipherMeta->header_len = headerLen;
+  cipherMeta->header_form = static_cast<uint8_t>(headerForm);
 
   // TODO: I think we should add an API that doesn't need a buffer.
   bool ret = ioBufBatch.write(
-      nullptr /* no need to pass buf */,
-      encodedSize,
-      cipherMeta,
-      16);
+      nullptr /* no need to pass buf */, encodedSize, cipherMeta);
   // update stats and connection
   if (ret) {
     QUIC_STATS(connection.statsCallback, onWrite, encodedSize);

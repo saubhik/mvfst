@@ -168,10 +168,8 @@ bool SinglePacketBatchWriter::append(
 ssize_t SinglePacketBatchWriter::write(
     folly::AsyncUDPSocket& sock,
     const folly::SocketAddress& address,
-    void *cipherMeta,
-    ssize_t cipherMetaLen) {
-  (void)cipherMeta;
-  (void)cipherMetaLen;
+    rt::CipherMeta** cipherMetas /*unused*/,
+    ssize_t numCipherMetas /*unused*/) {
   return sock.write(address, buf_);
 }
 
@@ -229,15 +227,10 @@ bool GSOPacketBatchWriter::append(
 ssize_t GSOPacketBatchWriter::write(
     folly::AsyncUDPSocket& sock,
     const folly::SocketAddress& address,
-    void *cipherMeta,
-    ssize_t cipherMetaLen) {
+    rt::CipherMeta** cipherMeta /*unused*/,
+    ssize_t numCipherMetas /*unused*/) {
   return (currBufs_ > 1)
-      ? sock.writeGSO(
-            address,
-            buf_,
-            static_cast<int>(prevSize_),
-            cipherMeta,
-            cipherMetaLen)
+      ? sock.writeGSO(address, buf_, static_cast<int>(prevSize_), nullptr, 0)
       : sock.write(address, buf_);
 }
 
@@ -295,8 +288,8 @@ bool GSOInplacePacketBatchWriter::append(
 ssize_t GSOInplacePacketBatchWriter::write(
     folly::AsyncUDPSocket& sock,
     const folly::SocketAddress& address,
-    void *cipherMeta,
-    ssize_t cipherMetaLen) {
+    rt::CipherMeta** cipherMetas,
+    ssize_t numCipherMetas) {
 #if PROFILING_ENABLED
   uint64_t st = microtime();
 #endif
@@ -326,14 +319,13 @@ ssize_t GSOInplacePacketBatchWriter::write(
                           << " tot = " << totElapsed["write-1"] << " micros"
                           << (totElapsed["write-1"] = 0);
 #endif
-  auto bytesWritten = (numPackets_ > 1)
-      ? sock.writeGSO(
-            address,
-            buf,
-            static_cast<int>(prevSize_),
-            cipherMeta,
-            cipherMetaLen)
-      : sock.write(address, buf);
+  auto bytesWritten = (numPackets_ > 1) ? sock.writeGSO(
+                                              address,
+                                              buf,
+                                              static_cast<int>(prevSize_),
+                                              cipherMetas,
+                                              numCipherMetas)
+                                        : sock.write(address, buf);
 #if PROFILING_ENABLED
   st = microtime();
 #endif
@@ -428,10 +420,8 @@ bool SendmmsgPacketBatchWriter::append(
 ssize_t SendmmsgPacketBatchWriter::write(
     folly::AsyncUDPSocket& sock,
     const folly::SocketAddress& address,
-    void *cipherMeta,
-    ssize_t cipherMetaLen) {
-  (void)cipherMeta;
-  (void)cipherMetaLen;
+    rt::CipherMeta** cipherMetas /*unused*/,
+    ssize_t numCipherMetas /*unused*/) {
   CHECK_GT(bufs_.size(), 0);
   if (bufs_.size() == 1) {
     return sock.write(address, bufs_[0]);
@@ -527,8 +517,8 @@ bool SendmmsgGSOPacketBatchWriter::append(
 ssize_t SendmmsgGSOPacketBatchWriter::write(
     folly::AsyncUDPSocket& sock,
     const folly::SocketAddress& /*unused*/,
-    void* /*unused*/,
-    ssize_t /*unused*/) {
+    rt::CipherMeta** cipherMetas /*unused*/,
+    ssize_t numCipherMetas /*unused*/) {
   CHECK_GT(bufs_.size(), 0);
   if (bufs_.size() == 1) {
     return (currBufs_ > 1) ? sock.writeGSO(
