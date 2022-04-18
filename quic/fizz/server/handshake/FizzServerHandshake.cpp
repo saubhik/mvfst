@@ -153,9 +153,11 @@ FizzServerHandshake::buildCiphers(folly::ByteRange secret) {
       kQuicIVLabel));
   auto headerCipher = cryptoFactory_.makePacketNumberCipher(secret);
 
+#if 0
   for (uint8_t i : secret)
     std::cout << fmt::format("{:x}", std::byte(i)) << ",";
   std::cout << std::endl;
+#endif
 
   aead->setHashIndex();
   headerCipher->setHashIndex();

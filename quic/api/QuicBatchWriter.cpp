@@ -168,8 +168,8 @@ bool SinglePacketBatchWriter::append(
 ssize_t SinglePacketBatchWriter::write(
     folly::AsyncUDPSocket& sock,
     const folly::SocketAddress& address,
-    rt::CipherMeta** cipherMetas /*unused*/,
-    ssize_t numCipherMetas /*unused*/) {
+    rt::CipherMeta** /*cipherMetas*/,
+    ssize_t /*numCipherMetas*/) {
   return sock.write(address, buf_);
 }
 
@@ -227,8 +227,8 @@ bool GSOPacketBatchWriter::append(
 ssize_t GSOPacketBatchWriter::write(
     folly::AsyncUDPSocket& sock,
     const folly::SocketAddress& address,
-    rt::CipherMeta** cipherMeta /*unused*/,
-    ssize_t numCipherMetas /*unused*/) {
+    rt::CipherMeta** /*cipherMeta*/,
+    ssize_t /*numCipherMetas*/) {
   return (currBufs_ > 1)
       ? sock.writeGSO(address, buf_, static_cast<int>(prevSize_), nullptr, 0)
       : sock.write(address, buf_);
@@ -420,8 +420,8 @@ bool SendmmsgPacketBatchWriter::append(
 ssize_t SendmmsgPacketBatchWriter::write(
     folly::AsyncUDPSocket& sock,
     const folly::SocketAddress& address,
-    rt::CipherMeta** cipherMetas /*unused*/,
-    ssize_t numCipherMetas /*unused*/) {
+    rt::CipherMeta** /*cipherMetas*/,
+    ssize_t /*numCipherMetas*/) {
   CHECK_GT(bufs_.size(), 0);
   if (bufs_.size() == 1) {
     return sock.write(address, bufs_[0]);
@@ -517,8 +517,8 @@ bool SendmmsgGSOPacketBatchWriter::append(
 ssize_t SendmmsgGSOPacketBatchWriter::write(
     folly::AsyncUDPSocket& sock,
     const folly::SocketAddress& /*unused*/,
-    rt::CipherMeta** cipherMetas /*unused*/,
-    ssize_t numCipherMetas /*unused*/) {
+    rt::CipherMeta** /*cipherMetas*/,
+    ssize_t /*numCipherMetas*/) {
   CHECK_GT(bufs_.size(), 0);
   if (bufs_.size() == 1) {
     return (currBufs_ > 1) ? sock.writeGSO(

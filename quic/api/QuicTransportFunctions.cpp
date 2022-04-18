@@ -313,7 +313,7 @@ DataPathResult continuousMemoryBuildScheduleEncrypt(
   auto& packet = result.packet;
   if (!packet || packet->packet.frames.empty()) {
     rollbackBuf();
-    ioBufBatch.flush(nullptr, 0);
+    ioBufBatch.flush();
     if (connection.loopDetectorCallback) {
       connection.writeDebugState.noWriteReason = NoWriteReason::NO_FRAME;
     }
@@ -322,7 +322,7 @@ DataPathResult continuousMemoryBuildScheduleEncrypt(
   if (!packet->body) {
     // No more space remaining.
     rollbackBuf();
-    ioBufBatch.flush(nullptr, 0);
+    ioBufBatch.flush();
     if (connection.loopDetectorCallback) {
       connection.writeDebugState.noWriteReason = NoWriteReason::NO_BODY;
     }
@@ -365,8 +365,16 @@ DataPathResult continuousMemoryBuildScheduleEncrypt(
             << std::endl;
 #endif
   // buf and packetBuf is actually the same.
-  auto packetBuf =
-      aead.inplaceEncrypt(std::move(buf), packet->header.get(), packetNum);
+  auto bodyLen = buf->length();
+  // VLOG(0) << "sending packet of bodyLen=" << bodyLen
+  //         << ", headerLen=" << headerLen;
+  std::unique_ptr<folly::IOBuf> packetBuf;
+  if (aead.getHashIndex() == 0) {
+    packetBuf =
+        aead.inplaceEncrypt(std::move(buf), packet->header.get(), packetNum);
+  } else {
+    packetBuf = std::move(buf);
+  }
 #if PROFILING_ENABLED
   totElapsed["continuousMemoryBuildScheduleEncrypt-4"] += microtime() - st;
   VLOG_EVERY_N(1, 100000) << "(anon)::continuousMemoryBuildScheduleEncrypt() PART 4"
@@ -419,13 +427,15 @@ DataPathResult continuousMemoryBuildScheduleEncrypt(
             << "----------------------------------------------------\n";
   if (++calls == 5) raise(SIGABRT);
 #endif
-  encryptPacketHeader(
-      headerForm,
-      packetBuf->writableData(),
-      headerLen,
-      packetBuf->data() + headerLen,
-      packetBuf->length() - headerLen,
-      headerCipher);
+  if (aead.getHashIndex() == 0) {
+    encryptPacketHeader(
+        headerForm,
+        packetBuf->writableData(),
+        headerLen,
+        packetBuf->data() + headerLen,
+        packetBuf->length() - headerLen,
+        headerCipher);
+  }
   CHECK(!packetBuf->isChained());
   auto encodedSize = packetBuf->length();
   // Include previous packets back.
@@ -449,13 +459,13 @@ DataPathResult continuousMemoryBuildScheduleEncrypt(
                           << (totElapsed["continuousMemoryBuildScheduleEncrypt-5"] = 0);
 #endif
 
-  rt::CipherMeta* cipherMeta;
+  auto* cipherMeta = new rt::CipherMeta;
   cipherMeta->aead_index = aead.getHashIndex();
   cipherMeta->header_cipher_index = headerCipher.getHashIndex();
   cipherMeta->packet_num = packetNum;
   cipherMeta->header_len = headerLen;
+  cipherMeta->body_len = bodyLen;
   cipherMeta->header_form = static_cast<uint8_t>(headerForm);
-
   // TODO: I think we should add an API that doesn't need a buffer.
   bool ret = ioBufBatch.write(
       nullptr /* no need to pass buf */, encodedSize, cipherMeta);
@@ -488,7 +498,7 @@ DataPathResult iobufChainBasedBuildScheduleEncrypt(
       scheduler.scheduleFramesForPacket(std::move(pktBuilder), writableBytes);
   auto& packet = result.packet;
   if (!packet || packet->packet.frames.empty()) {
-    ioBufBatch.flush(nullptr, 0);
+    ioBufBatch.flush();
     if (connection.loopDetectorCallback) {
       connection.writeDebugState.noWriteReason = NoWriteReason::NO_FRAME;
     }
@@ -496,7 +506,7 @@ DataPathResult iobufChainBasedBuildScheduleEncrypt(
   }
   if (!packet->body) {
     // No more space remaining.
-    ioBufBatch.flush(nullptr, 0);
+    ioBufBatch.flush();
     if (connection.loopDetectorCallback) {
       connection.writeDebugState.noWriteReason = NoWriteReason::NO_BODY;
     }
@@ -534,7 +544,7 @@ DataPathResult iobufChainBasedBuildScheduleEncrypt(
         << "Quic sending pkt larger than limit, encodedSize=" << encodedSize;
   }
 #endif
-  bool ret = ioBufBatch.write(std::move(packetBuf), encodedSize, nullptr, 0);
+  bool ret = ioBufBatch.write(std::move(packetBuf), encodedSize, nullptr);
   if (ret) {
     // update stats and connection
     QUIC_STATS(connection.statsCallback, onWrite, encodedSize);
@@ -1580,7 +1590,7 @@ uint64_t writeConnectionDataToSocket(
 #if PROFILING_ENABLED
   st = microtime();
 #endif
-  ioBufBatch.flush(nullptr, 0);
+  ioBufBatch.flush();
   if (connection.transportSettings.dataPathType ==
       DataPathType::ContinuousMemory) {
     CHECK(connection.bufAccessor->ownsBuffer());

@@ -47,7 +47,9 @@ bool IOBufQuicBatch::write(
     flush(FlushType::FLUSH_TYPE_ALWAYS);
   }
 
-  cipherMetaVec_.push_back(cipherMeta);
+  if (cipherMeta) {
+    cipherMetaVec_.push_back(cipherMeta);
+  }
 
   // try to append the new buffers
   if (batchWriter_->append(
@@ -98,6 +100,8 @@ bool IOBufQuicBatch::flush(FlushType flushType) {
 
 void IOBufQuicBatch::reset() {
   batchWriter_->reset();
+  for (auto* meta : cipherMetaVec_)
+    free(meta);
   cipherMetaVec_.clear();
 }
 
