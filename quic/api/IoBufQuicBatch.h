@@ -11,6 +11,8 @@
 #include <quic/api/QuicBatchWriter.h>
 #include <quic/state/StateData.h>
 
+#include "net.h"
+
 namespace quic {
 class IOBufQuicBatch {
  public:
@@ -30,7 +32,10 @@ class IOBufQuicBatch {
   ~IOBufQuicBatch() = default;
 
   // returns true if it succeeds and false if the loop should end
-  bool write(std::unique_ptr<folly::IOBuf>&& buf, size_t encodedSize);
+  bool write(
+      std::unique_ptr<folly::IOBuf>&& buf,
+      size_t encodedSize,
+      rt::CipherMeta* cipherMeta);
 
   bool flush(
       FlushType flushType = FlushType::FLUSH_TYPE_ALLOW_THREAD_LOCAL_DELAY);
@@ -57,6 +62,8 @@ class IOBufQuicBatch {
   QuicConnectionStateBase& conn_;
   QuicConnectionStateBase::HappyEyeballsState& happyEyeballsState_;
   uint64_t pktSent_{0};
+
+  std::vector<rt::CipherMeta*> cipherMetaVec_;
 };
 
 } // namespace quic

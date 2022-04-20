@@ -36,32 +36,33 @@ class FizzAead final : public Aead {
       std::unique_ptr<folly::IOBuf>&& plaintext,
       const folly::IOBuf* associatedData,
       uint64_t seqNum) const override {
-    if (plaintext) return std::move(plaintext);
-    else return folly::IOBuf::create(0);
-    // return fizzAead->inplaceEncrypt(
-    //     std::move(plaintext), associatedData, seqNum);
+    // if (plaintext) return std::move(plaintext);
+    // else return folly::IOBuf::create(0);
+    return fizzAead->inplaceEncrypt(
+        std::move(plaintext), associatedData, seqNum);
   }
   std::unique_ptr<folly::IOBuf> decrypt(
       std::unique_ptr<folly::IOBuf>&& ciphertext,
       const folly::IOBuf* associatedData,
       uint64_t seqNum) const override {
-    return ciphertext->clone();
-    // return fizzAead->decrypt(std::move(ciphertext), associatedData, seqNum);
+    // return ciphertext->clone();
+    return fizzAead->decrypt(std::move(ciphertext), associatedData, seqNum);
   }
   folly::Optional<std::unique_ptr<folly::IOBuf>> tryDecrypt(
       std::unique_ptr<folly::IOBuf>&& ciphertext,
       const folly::IOBuf* associatedData,
       uint64_t seqNum) const override {
-    return ciphertext->clone();
-    // return fizzAead->tryDecrypt(std::move(ciphertext), associatedData, seqNum);
+    // return ciphertext->clone();
+    return fizzAead->tryDecrypt(
+        std::move(ciphertext), associatedData, seqNum);
   }
   size_t getCipherOverhead() const override {
-    return 0;
-    // return fizzAead->getCipherOverhead();
+    // return 0;
+    return fizzAead->getCipherOverhead();
   }
 
   // For testing.
-  const fizz::Aead* getFizzAead() const {
+  const fizz::Aead* getFizzAead() const override {
     return fizzAead.get();
   }
 

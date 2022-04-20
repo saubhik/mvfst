@@ -12,6 +12,8 @@
 #include <quic/fizz/handshake/FizzCryptoFactory.h>
 #include <quic/state/QuicStreamFunctions.h>
 
+#include <iostream>
+
 namespace quic {
 ServerHandshake::ServerHandshake(QuicConnectionStateBase* conn)
     : conn_(conn), actionGuard_(nullptr), cryptoState_(*conn->cryptoState) {}

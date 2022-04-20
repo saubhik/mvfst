@@ -11,6 +11,8 @@
 #include <folly/Optional.h>
 #include <folly/io/Cursor.h>
 
+#include "timer.h"
+
 namespace quic {
 
 using HeaderProtectionMask = std::array<uint8_t, 16>;
@@ -71,6 +73,15 @@ class PacketNumberCipher {
    */
   virtual size_t keyLength() const = 0;
 
+  /**
+   * Helps the IOKernel use the right Aead object for encrypting a packet.
+   */
+  uint64_t getHashIndex() const { return hashIndex; }
+  void setHashIndex() {
+    if (hashIndex) throw std::runtime_error("hashIndex already set!");
+    hashIndex = rt::MicroTime();
+  }
+
  protected:
   virtual void cipherHeader(
       folly::ByteRange sample,
@@ -85,6 +96,9 @@ class PacketNumberCipher {
       folly::MutableByteRange packetNumberBytes,
       uint8_t initialByteMask,
       uint8_t packetNumLengthMask) const;
+
+ private:
+  uint64_t hashIndex;
 };
 
 } // namespace quic

@@ -34,7 +34,8 @@ IOBufQuicBatch::IOBufQuicBatch(
 
 bool IOBufQuicBatch::write(
     std::unique_ptr<folly::IOBuf>&& buf,
-    size_t encodedSize) {
+    size_t encodedSize,
+    rt::CipherMeta* cipherMeta) {
 #if PROFILING_ENABLED
   uint64_t st = microtime();
 #endif
@@ -44,6 +45,10 @@ bool IOBufQuicBatch::write(
   if (batchWriter_->needsFlush(encodedSize)) {
     // continue even if we get an error here
     flush(FlushType::FLUSH_TYPE_ALWAYS);
+  }
+
+  if (cipherMeta) {
+    cipherMetaVec_.push_back(cipherMeta);
   }
 
   // try to append the new buffers
@@ -95,6 +100,9 @@ bool IOBufQuicBatch::flush(FlushType flushType) {
 
 void IOBufQuicBatch::reset() {
   batchWriter_->reset();
+  for (auto* meta : cipherMetaVec_)
+    free(meta);
+  cipherMetaVec_.clear();
 }
 
 bool IOBufQuicBatch::isRetriableError(int err) {
@@ -119,7 +127,11 @@ bool IOBufQuicBatch::flushInternal() {
                            << " micros"
                            << (totElapsed["flushInternal-1"] = 0);
 #endif
-    auto consumed = batchWriter_->write(sock_, peerAddress_);
+    auto consumed = batchWriter_->write(
+        sock_,
+        peerAddress_,
+        cipherMetaVec_.data(),
+        (ssize_t)cipherMetaVec_.size());
 #if PROFILING_ENABLED
     st = microtime();
 #endif
@@ -152,7 +164,9 @@ bool IOBufQuicBatch::flushInternal() {
     // socket.
     auto consumed = batchWriter_->write(
         *happyEyeballsState_.secondSocket,
-        happyEyeballsState_.secondPeerAddress);
+        happyEyeballsState_.secondPeerAddress,
+        cipherMetaVec_.data(),
+        (ssize_t)cipherMetaVec_.size());
 #if PROFILING_ENABLED
     st = microtime();
 #endif

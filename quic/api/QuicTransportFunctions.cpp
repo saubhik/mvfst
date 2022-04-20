@@ -10,17 +10,19 @@
 
 #include <quic/QuicConstants.h>
 #include <quic/QuicException.h>
-#include <quic/api/QuicTransportFunctions.h>
 #include <quic/codec/QuicPacketBuilder.h>
 #include <quic/codec/QuicWriteCodec.h>
 #include <quic/codec/Types.h>
 #include <quic/flowcontrol/QuicFlowController.h>
-#include <quic/happyeyeballs/QuicHappyEyeballsFunctions.h>
 #include <quic/logging/QuicLogger.h>
 #include <quic/state/AckHandlers.h>
 #include <quic/state/QuicStateFunctions.h>
 #include <quic/state/QuicStreamFunctions.h>
 #include <quic/state/SimpleFrameFunctions.h>
+#include <fizz/record/Types.h>
+#include <quic/fizz/handshake/FizzBridge.h>
+
+#include "net.h"
 
 namespace {
 #if PROFILING_ENABLED
@@ -195,6 +197,66 @@ uint64_t writeQuicDataToSocketImpl(
   return written;
 }
 
+#if 0
+// Converts the hex encoded string to an IOBuf.
+std::unique_ptr<folly::IOBuf>
+toIOBuf(std::string hexData, size_t headroom = 0, size_t tailroom = 0) {
+  std::string out;
+  CHECK(folly::unhexlify(hexData, out));
+  return folly::IOBuf::copyBuffer(out, headroom, tailroom);
+}
+
+template <typename Array>
+Array hexToBytes(const folly::StringPiece hex) {
+  auto bytesString = folly::unhexlify(hex);
+  Array bytes;
+  memcpy(bytes.data(), bytesString.data(), bytes.size());
+  return bytes;
+}
+
+using SampleBytes = std::array<uint8_t, 16>;
+using InitialByte = std::array<uint8_t, 1>;
+using PacketNumberBytes = std::array<uint8_t, 4>;
+
+struct CipherBytes {
+  SampleBytes sample;
+  InitialByte initial;
+  PacketNumberBytes packetNumber;
+
+  explicit CipherBytes(
+      const folly::StringPiece sampleHex,
+      const folly::StringPiece initialHex,
+      const folly::StringPiece packetNumberHex)
+      : sample(hexToBytes<SampleBytes>(sampleHex)),
+        initial(hexToBytes<InitialByte>(initialHex)),
+        packetNumber(hexToBytes<PacketNumberBytes>(packetNumberHex)) {}
+};
+
+struct HeaderParams {
+  fizz::CipherSuite cipher;
+  folly::StringPiece key;
+  folly::StringPiece sample;
+  folly::StringPiece packetNumberBytes;
+  folly::StringPiece initialByte;
+  folly::StringPiece decryptedPacketNumberBytes;
+  folly::StringPiece decryptedInitialByte;
+};
+
+HeaderParams headerParams{
+    fizz::CipherSuite::TLS_AES_128_GCM_SHA256,
+    folly::StringPiece{"0edd982a6ac527f2eddcbb7348dea5d7"},
+    folly::StringPiece{"0000f3a694c75775b4e546172ce9e047"},
+    folly::StringPiece{"0dbc195a"},
+    folly::StringPiece{"c1"},
+    folly::StringPiece{"00000002"},
+    folly::StringPiece{"c3"}};
+
+CipherBytes cipherBytes(
+    headerParams.sample,
+    headerParams.decryptedInitialByte,
+    headerParams.decryptedPacketNumberBytes);
+#endif
+
 DataPathResult continuousMemoryBuildScheduleEncrypt(
     QuicConnectionStateBase& connection,
     PacketHeader header,
@@ -287,9 +349,32 @@ DataPathResult continuousMemoryBuildScheduleEncrypt(
                           << (totElapsed["continuousMemoryBuildScheduleEncrypt-3"] = 0);
   st = microtime();
 #endif
+#if 0
+  static int calls = 0;
+  std::cout << "-----------------------------------------------------\n"
+            << "-- continuousMemoryBuildScheduleEncrypt ENTER (" << calls << ") ---\n"
+            << "-----------------------------------------------------\n";
+
+  auto out = aead.getFizzAead()->encrypt(
+      toIOBuf(folly::hexlify("plaintext")),
+      toIOBuf("").get(),
+      0);
+
+  std::cout << R"(aead->encrypt(hexlify("plaintext"),"",0) = )"
+            << folly::hexlify(out->moveToFbString().toStdString())
+            << std::endl;
+#endif
   // buf and packetBuf is actually the same.
-  auto packetBuf =
-      aead.inplaceEncrypt(std::move(buf), packet->header.get(), packetNum);
+  auto bodyLen = buf->length();
+  // VLOG(0) << "sending packet of bodyLen=" << bodyLen
+  //         << ", headerLen=" << headerLen;
+  std::unique_ptr<folly::IOBuf> packetBuf;
+  if (aead.getHashIndex() == 0) {
+    packetBuf =
+        aead.inplaceEncrypt(std::move(buf), packet->header.get(), packetNum);
+  } else {
+    packetBuf = std::move(buf);
+  }
 #if PROFILING_ENABLED
   totElapsed["continuousMemoryBuildScheduleEncrypt-4"] += microtime() - st;
   VLOG_EVERY_N(1, 100000) << "(anon)::continuousMemoryBuildScheduleEncrypt() PART 4"
@@ -304,13 +389,53 @@ DataPathResult continuousMemoryBuildScheduleEncrypt(
   packetBuf->prepend(headerLen);
 
   HeaderForm headerForm = packet->packet.header.getHeaderForm();
-  encryptPacketHeader(
-      headerForm,
-      packetBuf->writableData(),
-      headerLen,
-      packetBuf->data() + headerLen,
-      packetBuf->length() - headerLen,
-      headerCipher);
+#if 0
+  headerCipher.encryptLongHeader(
+      cipherBytes.sample,
+      folly::range(cipherBytes.initial),
+      folly::range(cipherBytes.packetNumber));
+
+  std::cout << "InitialByte: "
+            << headerParams.decryptedInitialByte
+            << " ----encryptLongHeader----> "
+            << folly::hexlify(cipherBytes.initial)
+            << std::endl;
+  std::cout << "PacketNumberBytes: "
+            << headerParams.decryptedPacketNumberBytes
+            << " ----encryptLongHeader----> "
+            << folly::hexlify(cipherBytes.packetNumber)
+            << std::endl;
+
+  headerCipher.decryptLongHeader(
+      cipherBytes.sample,
+      folly::range(cipherBytes.initial),
+      folly::range(cipherBytes.packetNumber));
+
+  std::cout << "InitialByte: "
+            << headerParams.initialByte
+            << " ----decryptLongHeader----> "
+            << folly::hexlify(cipherBytes.initial)
+            << std::endl;
+  std::cout << "PacketNumberBytes: "
+            << headerParams.packetNumberBytes
+            << " ----decryptLongHeader----> "
+            << folly::hexlify(cipherBytes.packetNumber)
+            << std::endl;
+
+  std::cout << "----------------------------------------------------\n"
+            << "-- continuousMemoryBuildScheduleEncrypt EXIT (" << calls << ") ---\n"
+            << "----------------------------------------------------\n";
+  if (++calls == 5) raise(SIGABRT);
+#endif
+  if (aead.getHashIndex() == 0) {
+    encryptPacketHeader(
+        headerForm,
+        packetBuf->writableData(),
+        headerLen,
+        packetBuf->data() + headerLen,
+        packetBuf->length() - headerLen,
+        headerCipher);
+  }
   CHECK(!packetBuf->isChained());
   auto encodedSize = packetBuf->length();
   // Include previous packets back.
@@ -333,14 +458,30 @@ DataPathResult continuousMemoryBuildScheduleEncrypt(
                           << " micros"
                           << (totElapsed["continuousMemoryBuildScheduleEncrypt-5"] = 0);
 #endif
-  // TODO: I think we should add an API that doesn't need a buffer.
-  bool ret = ioBufBatch.write(nullptr /* no need to pass buf */, encodedSize);
+
+  bool ret;
+  if (aead.getHashIndex()) {
+    auto* cipherMeta = new rt::CipherMeta;
+    cipherMeta->aead_index = aead.getHashIndex();
+    cipherMeta->header_cipher_index = headerCipher.getHashIndex();
+    cipherMeta->packet_num = packetNum;
+    cipherMeta->header_len = headerLen;
+    cipherMeta->body_len = bodyLen;
+    cipherMeta->header_form = static_cast<uint8_t>(headerForm);
+    // TODO: I think we should add an API that doesn't need a buffer.
+    ret = ioBufBatch.write(
+        nullptr /* no need to pass buf */, encodedSize, cipherMeta);
+  } else {
+    ret = ioBufBatch.write(
+        nullptr /* no need to pass buf */, encodedSize, nullptr);
+  }
   // update stats and connection
   if (ret) {
     QUIC_STATS(connection.statsCallback, onWrite, encodedSize);
     QUIC_STATS(connection.statsCallback, onPacketSent);
   }
-  return DataPathResult::makeWriteResult(ret, std::move(result), encodedSize);
+  return DataPathResult::makeWriteResult(
+      ret, std::move(result), encodedSize);
 }
 
 DataPathResult iobufChainBasedBuildScheduleEncrypt(
@@ -410,7 +551,7 @@ DataPathResult iobufChainBasedBuildScheduleEncrypt(
         << "Quic sending pkt larger than limit, encodedSize=" << encodedSize;
   }
 #endif
-  bool ret = ioBufBatch.write(std::move(packetBuf), encodedSize);
+  bool ret = ioBufBatch.write(std::move(packetBuf), encodedSize, nullptr);
   if (ret) {
     // update stats and connection
     QUIC_STATS(connection.statsCallback, onWrite, encodedSize);
