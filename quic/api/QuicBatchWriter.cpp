@@ -319,13 +319,8 @@ ssize_t GSOInplacePacketBatchWriter::write(
                           << " tot = " << totElapsed["write-1"] << " micros"
                           << (totElapsed["write-1"] = 0);
 #endif
-  auto bytesWritten = (numPackets_ > 1) ? sock.writeGSO(
-                                              address,
-                                              buf,
-                                              static_cast<int>(prevSize_),
-                                              cipherMetas,
-                                              numCipherMetas)
-                                        : sock.write(address, buf);
+  auto bytesWritten = sock.writeGSO(
+      address, buf, static_cast<int>(prevSize_), cipherMetas, numCipherMetas);
 #if PROFILING_ENABLED
   st = microtime();
 #endif

@@ -459,22 +459,29 @@ DataPathResult continuousMemoryBuildScheduleEncrypt(
                           << (totElapsed["continuousMemoryBuildScheduleEncrypt-5"] = 0);
 #endif
 
-  auto* cipherMeta = new rt::CipherMeta;
-  cipherMeta->aead_index = aead.getHashIndex();
-  cipherMeta->header_cipher_index = headerCipher.getHashIndex();
-  cipherMeta->packet_num = packetNum;
-  cipherMeta->header_len = headerLen;
-  cipherMeta->body_len = bodyLen;
-  cipherMeta->header_form = static_cast<uint8_t>(headerForm);
-  // TODO: I think we should add an API that doesn't need a buffer.
-  bool ret = ioBufBatch.write(
-      nullptr /* no need to pass buf */, encodedSize, cipherMeta);
+  bool ret;
+  if (aead.getHashIndex()) {
+    auto* cipherMeta = new rt::CipherMeta;
+    cipherMeta->aead_index = aead.getHashIndex();
+    cipherMeta->header_cipher_index = headerCipher.getHashIndex();
+    cipherMeta->packet_num = packetNum;
+    cipherMeta->header_len = headerLen;
+    cipherMeta->body_len = bodyLen;
+    cipherMeta->header_form = static_cast<uint8_t>(headerForm);
+    // TODO: I think we should add an API that doesn't need a buffer.
+    ret = ioBufBatch.write(
+        nullptr /* no need to pass buf */, encodedSize, cipherMeta);
+  } else {
+    ret = ioBufBatch.write(
+        nullptr /* no need to pass buf */, encodedSize, nullptr);
+  }
   // update stats and connection
   if (ret) {
     QUIC_STATS(connection.statsCallback, onWrite, encodedSize);
     QUIC_STATS(connection.statsCallback, onPacketSent);
   }
-  return DataPathResult::makeWriteResult(ret, std::move(result), encodedSize);
+  return DataPathResult::makeWriteResult(
+      ret, std::move(result), encodedSize);
 }
 
 DataPathResult iobufChainBasedBuildScheduleEncrypt(
