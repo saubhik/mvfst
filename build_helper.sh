@@ -110,7 +110,10 @@ if [[ ! -z "${MVFST_FOLLY_USE_JEMALLOC-}" ]]; then
 fi
 
 # Make this 0 to not compile profiling code.
-CMAKE_EXTRA_ARGS+=(-DCMAKE_CXX_FLAGS="-DPROFILING_ENABLED=0")
+CMAKE_EXTRA_ARGS+=(-DCMAKE_CXX_FLAGS="-DPROFILING_ENABLED=1")
+# Make this 1 to compile profiling code for client
+CMAKE_EXTRA_ARGS+=(-DCMAKE_CXX_FLAGS="-DPROFILING_ENABLED_CLIENT=1")
+
 
 # Default to parallel build width of 4.
 # If we have "nproc", use that to get a better value.

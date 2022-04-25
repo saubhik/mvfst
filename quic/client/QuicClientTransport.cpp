@@ -27,6 +27,12 @@
 #include <quic/state/stream/StreamReceiveHandlers.h>
 #include <quic/state/stream/StreamSendHandlers.h>
 
+#if PROFILING_ENABLED_CLIENT
+namespace {
+std::unordered_map<std::string, uint64_t> totElapsed;
+}
+#endif
+
 namespace fsp = folly::portability::sockets;
 
 namespace quic {
@@ -97,6 +103,11 @@ QuicClientTransport::~QuicClientTransport() {
 void QuicClientTransport::processUDPData(
     const folly::SocketAddress& peer,
     NetworkDataSingle&& networkData) {
+
+  #if PROFILING_ENABLED_CLIENT
+  uint64_t st = microtime();
+  #endif
+
   BufQueue udpData;
   udpData.append(std::move(networkData.data));
 
@@ -115,7 +126,12 @@ void QuicClientTransport::processUDPData(
           LocalErrorCode::CONNECTION_ABANDONED);
     }
   }
-
+  #if PROFILING_ENABLED_CLIENT
+      totElapsed["processUDPData"] += microtime() - st;
+      VLOG_EVERY_N(1, 10000) << "quic::QuicClientTransport::processUDPData()"
+                             << " tot = " << totElapsed["processUDPData"] << " micros"
+                             << (totElapsed["processUDPData"] = 0);
+  #endif
   for (uint16_t processedPackets = 0;
        !udpData.empty() && processedPackets < kMaxNumCoalescedPackets;
        processedPackets++) {
@@ -135,8 +151,23 @@ void QuicClientTransport::processPacketData(
   if (packetSize == 0) {
     return;
   }
+  //#if PROFILING_ENABLED_CLIENT
+  //uint64_t st = microtime();
+  //#endif
   auto parsedPacket = conn_->readCodec->parsePacket(
       packetQueue, conn_->ackStates, conn_->clientConnectionId->size());
+
+  //#if PROFILING_ENABLED_CLIENT
+  //      totElapsed["parsePacket"] += microtime() - st;
+  //      VLOG_EVERY_N(1, 10000) << "quic::QuicClientTransport::parsePacket()"
+  //                             << " tot = " << totElapsed["parsePacket"] << " micros"
+  //                             << (totElapsed["parsePacket"] = 0);
+  //#endif
+ 
+  #if PROFILING_ENABLED_CLIENT
+    uint64_t st = microtime();
+  #endif
+
   StatelessReset* statelessReset = parsedPacket.statelessReset();
   if (statelessReset) {
     const auto& token = clientConn_->statelessResetToken;
@@ -158,6 +189,7 @@ void QuicClientTransport::processPacketData(
 
     if (!clientConn_->retryToken.empty()) {
       VLOG(4) << "Server sent more than one retry packet";
+      // Unlikely
       return;
     }
 
@@ -168,6 +200,7 @@ void QuicClientTransport::processPacketData(
             *originalDstConnId, *retryPacket)) {
       VLOG(4) << "The integrity tag in the retry packet was invalid. "
               << "Dropping bad retry packet.";
+      // Unlikely, not profiled
       return;
     }
 
@@ -194,6 +227,13 @@ void QuicClientTransport::processPacketData(
     // upon receiving a subsequent initial from the server.
 
     startCryptoHandshake();
+    #if PROFILING_ENABLED_CLIENT
+        totElapsed["processPacketData"] += microtime() - st;
+        VLOG_EVERY_N(1, 10000) << "quic::QuicClientTransport::processPacketData()"
+                               << " tot = " << totElapsed["processPacketData"] << " micros"
+                               << (totElapsed["processPacketData"] = 0);
+    #endif
+ 
     return;
   }
 
@@ -664,6 +704,11 @@ void QuicClientTransport::processPacketData(
 void QuicClientTransport::onReadData(
     const folly::SocketAddress& peer,
     NetworkDataSingle&& networkData) {
+  
+  #if PROFILING_ENABLED_CLIENT
+  uint64_t st = microtime();
+  #endif
+
   if (closeState_ == CloseState::CLOSED) {
     // If we are closed, then we shoudn't process new network data.
     // TODO: we might want to process network data if we decide that we should
@@ -677,7 +722,19 @@ void QuicClientTransport::onReadData(
     return;
   }
   bool waitingForFirstPacket = !hasReceivedPackets(*conn_);
+  #if PROFILING_ENABLED_CLIENT
+      totElapsed["onReadData-1"] += microtime() - st;
+      VLOG_EVERY_N(1, 10000) << "quic::QuicClientTransport::onReadData() PART 1"
+                             << " tot = " << totElapsed["onReadData-1"] << " micros"
+                             << (totElapsed["onReadData-1"] = 0);
+  #endif
+  
   processUDPData(peer, std::move(networkData));
+
+  #if PROFILING_ENABLED_CLIENT
+  st = microtime();
+  #endif
+
   if (connCallback_ && waitingForFirstPacket && hasReceivedPackets(*conn_)) {
     connCallback_->onFirstPeerPacketProcessed();
   }
@@ -696,7 +753,13 @@ void QuicClientTransport::onReadData(
     socket_->setErrMessageCallback(nullptr);
     connCallback_->onReplaySafe();
   }
-
+  #if PROFILING_ENABLED_CLIENT
+      totElapsed["onReadData-2"] += microtime() - st;
+      VLOG_EVERY_N(1, 10000) << "quic::QuicClientTransport::onReadData() Part 2"
+                             << " tot = " << totElapsed["onReadData-2"] << " micros"
+                             << (totElapsed["onReadData-2"] = 0);
+  #endif
+ 
   maybeSendTransportKnobs();
 }
 
@@ -975,6 +1038,11 @@ void QuicClientTransport::onDataAvailable(
     size_t len,
     bool truncated,
     OnDataAvailableParams params) noexcept {
+  
+  #if PROFILING_ENABLED_CLIENT
+  uint64_t st = microtime();
+  #endif
+
   VLOG(10) << "Got data from socket peer=" << server << " len=" << len;
   auto packetReceiveTime = Clock::now();
   Buf data = std::move(readBuffer_);
@@ -999,6 +1067,13 @@ void QuicClientTransport::onDataAvailable(
     data->append(len);
     trackDatagramReceived(len);
     NetworkData networkData(std::move(data), packetReceiveTime);
+    #if PROFILING_ENABLED_CLIENT
+        totElapsed["onDataAvailable"] += microtime() - st;
+        VLOG_EVERY_N(1, 10000) << "quic::QuicClientTransport::onDataAvailable()"
+                               << " tot = " << totElapsed["onDataAvailable"] << " micros"
+                               << (totElapsed["onDataAvailable"] = 0);
+    #endif
+ 
     onNetworkData(server, std::move(networkData));
   } else {
     // if we receive a truncated packet
@@ -1047,7 +1122,13 @@ void QuicClientTransport::onDataAvailable(
         networkData.packets.emplace_back(std::move(data));
       }
     }
-
+    #if PROFILING_ENABLED_CLIENT
+        totElapsed["onDataAvailable-1"] += microtime() - st;
+        VLOG_EVERY_N(1, 10000) << "quic::QuicClientTransport::onDataAvailable()"
+                               << " tot = " << totElapsed["onDataAvailable-1"] << " micros"
+                               << (totElapsed["onDataAvailable-1"] = 0);
+    #endif
+ 
     onNetworkData(server, std::move(networkData));
   }
 }
