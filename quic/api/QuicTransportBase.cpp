@@ -25,7 +25,7 @@
 #include <quic/state/SimpleFrameFunctions.h>
 #include <quic/state/stream/StreamSendHandlers.h>
 
-#if PROFILING_ENABLED
+#if PROFILING_ENABLED_CLIENT
 namespace {
 std::unordered_map<std::string, uint64_t> totElapsed;
 }
@@ -1649,6 +1649,8 @@ void QuicTransportBase::processCallbacksAfterNetworkData() {
 void QuicTransportBase::onNetworkData(
     const folly::SocketAddress& peer,
     NetworkData&& networkData) noexcept {
+  
+  uint64_t st;
   FOLLY_MAYBE_UNUSED auto self = sharedGuard();
   SCOPE_EXIT {
     checkForClosedStream();
@@ -1664,6 +1666,9 @@ void QuicTransportBase::onNetworkData(
           peer,
           NetworkDataSingle(std::move(packet), networkData.receiveTimePoint));
     }
+    #if PROFILING_ENABLED_CLIENT
+    st = microtime();
+    #endif
     processCallbacksAfterNetworkData();
     if (closeState_ != CloseState::CLOSED) {
       if (currentAckStateVersion(*conn_) != originalAckVersion) {
@@ -1722,6 +1727,13 @@ void QuicTransportBase::onNetworkData(
         QuicErrorCode(TransportErrorCode::INTERNAL_ERROR),
         std::string("error onNetworkData()")));
   }
+    #if PROFILING_ENABLED_CLIENT
+        totElapsed["onNetworkData"] += microtime() - st;
+        VLOG_EVERY_N(1, 10000) << "quic::QuicClientTransportBase::onNetworkData()"
+                               << " tot = " << totElapsed["onNetworkData"] << " micros"
+                               << (totElapsed["onNetworkData"] = 0);
+    #endif
+ 
 }
 
 void QuicTransportBase::setIdleTimer() {

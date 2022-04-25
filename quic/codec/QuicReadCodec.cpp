@@ -12,6 +12,12 @@
 #include <quic/codec/Decode.h>
 #include <quic/codec/PacketNumber.h>
 
+#if PROFILING_ENABLED_CLIENT
+namespace {
+std::unordered_map<std::string, uint64_t> totElapsed;
+}
+#endif
+
 namespace {
 quic::ConnectionId zeroConnId() {
   std::vector<uint8_t> zeroData(quic::kDefaultConnectionIdSize, 0);
@@ -50,6 +56,9 @@ QuicReadCodec::tryParsingVersionNegotiation(BufQueue& queue) {
 CodecResult QuicReadCodec::parseLongHeaderPacket(
     BufQueue& queue,
     const AckStates& ackStates) {
+  #if PROFILING_ENABLED_CLIENT
+  uint64_t st = microtime();
+  #endif
   folly::io::Cursor cursor(queue.front());
   auto initialByte = cursor.readBE<uint8_t>();
   auto longHeaderInvariant = parseLongHeaderInvariant(initialByte, cursor);
@@ -213,10 +222,29 @@ CodecResult QuicReadCodec::parseLongHeaderPacket(
     // present helps with writing tests.
     encryptedData = folly::IOBuf::create(0);
   }
-
+  #if PROFILING_ENABLED_CLIENT
+        totElapsed["parseLongHeaderPacket-1"] += microtime() - st;
+        VLOG_EVERY_N(1, 10000) << "quic::QuicReadCodec::parseLongHeaderPacket() Part 1"
+                               << " tot = " << totElapsed["parseLongHeaderPacket-1"] << " micros"
+                               << (totElapsed["parseLongHeaderPacket-1"] = 0);
+  #endif
+  #if PROFILING_ENABLED_CLIENT
+  st = microtime();
+  #endif
   Buf decrypted;
   auto decryptAttempt = cipher->tryDecrypt(
       std::move(encryptedData), headerData.get(), packetNum.first);
+  #if PROFILING_ENABLED_CLIENT
+        totElapsed["tryDecrypt"] += microtime() - st;
+        VLOG_EVERY_N(1, 10000) << "quic::QuicReadCodec::tryDecrypt()"
+                               << " tot = " << totElapsed["tryDecrypt"] << " micros"
+                               << (totElapsed["tryDecrypt"] = 0);
+  #endif
+
+  #if PROFILING_ENABLED_CLIENT
+  st = microtime();
+  #endif
+ 
   if (!decryptAttempt) {
     VLOG(4) << "Unable to decrypt packet=" << packetNum.first
             << " packetNumLen=" << parsePacketNumberLength(initialByte)
@@ -231,6 +259,13 @@ CodecResult QuicReadCodec::parseLongHeaderPacket(
     decrypted = folly::IOBuf::create(0);
   }
 
+  #if PROFILING_ENABLED_CLIENT
+        totElapsed["parseLongHeaderPacket-2"] += microtime() - st;
+        VLOG_EVERY_N(1, 10000) << "quic::QuicReadCodec::parseLongHeaderPacket() Part 2"
+                               << " tot = " << totElapsed["parseLongHeaderPacket-2"] << " micros"
+                               << (totElapsed["parseLongHeaderPacket-2"] = 0);
+  #endif
+ 
   return decodeRegularPacket(
       std::move(longHeader), params_, std::move(decrypted));
 }
@@ -241,6 +276,9 @@ CodecResult QuicReadCodec::tryParseShortHeaderPacket(
     size_t dstConnIdSize,
     folly::io::Cursor& cursor) {
   // TODO: allow other connid lengths from the state.
+  #if PROFILING_ENABLED_CLIENT
+  uint64_t st = microtime();
+  #endif
   size_t packetNumberOffset = 1 + dstConnIdSize;
   PacketNum expectedNextPacketNum =
       ackStates.appDataAckState.largestReceivedPacketNum
@@ -286,9 +324,30 @@ CodecResult QuicReadCodec::tryParseShortHeaderPacket(
       folly::IOBuf::wrapBufferAsValue(data->data(), aadLen);
   data->trimStart(aadLen);
 
+  #if PROFILING_ENABLED_CLIENT
+        totElapsed["tryParseShortHeaderPacket-1"] += microtime() - st;
+        VLOG_EVERY_N(1, 10000) << "quic::QuicReadCodec::tryParseShortHeaderPacket() Part 1"
+                               << " tot = " << totElapsed["tryParseShortHeaderPacket-1"] << " micros"
+                               << (totElapsed["tryParseShortHeaderPacket-1"] = 0);
+  #endif
+ 
   Buf decrypted;
+  #if PROFILING_ENABLED_CLIENT
+  st = microtime();
+  #endif
   auto decryptAttempt = oneRttReadCipher_->tryDecrypt(
       std::move(data), &headerData, packetNum.first);
+
+  #if PROFILING_ENABLED_CLIENT
+        totElapsed["tryDecrypt"] += microtime() - st;
+        VLOG_EVERY_N(1, 10000) << "quic::QuicReadCodec::tryDecrypt()"
+                               << " tot = " << totElapsed["tryDecrypt"] << " micros"
+                               << (totElapsed["tryDecrypt"] = 0);
+  #endif
+  
+  #if PROFILING_ENABLED_CLIENT
+  st = microtime();
+  #endif
   if (!decryptAttempt) {
     auto protectionType = shortHeader->getProtectionType();
     VLOG(10) << "Unable to decrypt packet=" << packetNum.first
@@ -302,6 +361,14 @@ CodecResult QuicReadCodec::tryParseShortHeaderPacket(
     decrypted = folly::IOBuf::create(0);
   }
 
+  #if PROFILING_ENABLED_CLIENT
+        totElapsed["tryParseShortHeaderPacket-2"] += microtime() - st;
+        VLOG_EVERY_N(1, 10000) << "quic::QuicReadCodec::tryParseShortHeaderPacket() Part 2"
+                               << " tot = " << totElapsed["tryParseShortHeaderPacket-2"] << " micros"
+                               << (totElapsed["tryParseShortHeaderPacket-2"] = 0);
+  #endif
+ 
+
   return decodeRegularPacket(
       std::move(*shortHeader), params_, std::move(decrypted));
 }
@@ -310,6 +377,9 @@ CodecResult QuicReadCodec::parsePacket(
     BufQueue& queue,
     const AckStates& ackStates,
     size_t dstConnIdSize) {
+  #if PROFILING_ENABLED_CLIENT
+    auto st = microtime();
+  #endif
   if (queue.empty()) {
     return CodecResult(Nothing());
   }
@@ -321,6 +391,12 @@ CodecResult QuicReadCodec::parsePacket(
   uint8_t initialByte = cursor.readBE<uint8_t>();
   auto headerForm = getHeaderForm(initialByte);
   if (headerForm == HeaderForm::Long) {
+    #if PROFILING_ENABLED_CLIENT
+          totElapsed["parsePacket"] += microtime() - st;
+          VLOG_EVERY_N(1, 10000) << "quic::QuicReadCodec::parsePacket()"
+                                 << " tot = " << totElapsed["parsePacket"] << " micros"
+                                 << (totElapsed["parsePacket"] = 0);
+    #endif
     return parseLongHeaderPacket(queue, ackStates);
   }
   // Missing 1-rtt Cipher is the only case we wouldn't consider reset
@@ -353,12 +429,20 @@ CodecResult QuicReadCodec::parsePacket(
       }
     }
   }
-
+  #if PROFILING_ENABLED_CLIENT
+        totElapsed["parsePacket"] += microtime() - st;
+        VLOG_EVERY_N(1, 10000) << "quic::QuicReadCodec::parsePacket()"
+                               << " tot = " << totElapsed["parsePacket"] << " micros"
+                               << (totElapsed["parsePacket"] = 0);
+  #endif
+ 
   auto maybeShortHeaderPacket = tryParseShortHeaderPacket(
       std::move(data), ackStates, dstConnIdSize, cursor);
   if (token && maybeShortHeaderPacket.nothing()) {
     return StatelessReset(*token);
   }
+
+
   return maybeShortHeaderPacket;
 }
 

@@ -12,6 +12,16 @@
 #include <quic/QuicException.h>
 #include <quic/codec/PacketNumber.h>
 #include <quic/codec/QuicInteger.h>
+#include <quic/common/TimeUtil.h>
+#include "timer.h"
+
+#if PROFILING_ENABLED_CLIENT
+namespace {
+std::unordered_map<std::string, uint64_t> totElapsed;
+}
+#endif
+
+
 
 namespace {
 
@@ -824,12 +834,23 @@ RegularQuicPacket decodeRegularPacket(
     PacketHeader&& header,
     const CodecParameters& params,
     std::unique_ptr<folly::IOBuf> packetData) {
+  #if PROFILING_ENABLED_CLIENT
+  uint64_t st = microtime();
+  #endif
   RegularQuicPacket packet(std::move(header));
   BufQueue queue;
   queue.append(std::move(packetData));
   while (queue.chainLength() > 0) {
     packet.frames.push_back(parseFrame(queue, packet.header, params));
   }
+  #if PROFILING_ENABLED_CLIENT
+        totElapsed["decodeRegularPacket"] += microtime() - st;
+        VLOG_EVERY_N(1, 10000) << "quic::QuicReadCodec::decodeRegularPacket()"
+                               << " tot = " << totElapsed["decodeRegularPacket()"] << " micros"
+                               << (totElapsed["decodeRegularPacket()"] = 0);
+  #endif
+ 
+
   return packet;
 }
 
