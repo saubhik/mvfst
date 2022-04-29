@@ -96,7 +96,8 @@ QuicClientTransport::~QuicClientTransport() {
 
 void QuicClientTransport::processUDPData(
     const folly::SocketAddress& peer,
-    NetworkDataSingle&& networkData) {
+    NetworkDataSingle&& networkData,
+    bool isDecrypted) {
   BufQueue udpData;
   udpData.append(std::move(networkData.data));
 
@@ -119,7 +120,7 @@ void QuicClientTransport::processUDPData(
   for (uint16_t processedPackets = 0;
        !udpData.empty() && processedPackets < kMaxNumCoalescedPackets;
        processedPackets++) {
-    processPacketData(peer, networkData.receiveTimePoint, udpData);
+    processPacketData(peer, networkData.receiveTimePoint, udpData, isDecrypted);
   }
   VLOG_IF(4, !udpData.empty())
       << "Leaving " << udpData.chainLength()
@@ -130,13 +131,17 @@ void QuicClientTransport::processUDPData(
 void QuicClientTransport::processPacketData(
     const folly::SocketAddress& peer,
     TimePoint receiveTimePoint,
-    BufQueue& packetQueue) {
+    BufQueue& packetQueue,
+    bool isDecrypted) {
   auto packetSize = packetQueue.chainLength();
   if (packetSize == 0) {
     return;
   }
   auto parsedPacket = conn_->readCodec->parsePacket(
-      packetQueue, conn_->ackStates, conn_->clientConnectionId->size());
+      packetQueue,
+      conn_->ackStates,
+      conn_->clientConnectionId->size(),
+      isDecrypted);
   StatelessReset* statelessReset = parsedPacket.statelessReset();
   if (statelessReset) {
     const auto& token = clientConn_->statelessResetToken;
@@ -663,7 +668,8 @@ void QuicClientTransport::processPacketData(
 
 void QuicClientTransport::onReadData(
     const folly::SocketAddress& peer,
-    NetworkDataSingle&& networkData) {
+    NetworkDataSingle&& networkData,
+    bool isDecrypted) {
   if (closeState_ == CloseState::CLOSED) {
     // If we are closed, then we shoudn't process new network data.
     // TODO: we might want to process network data if we decide that we should
@@ -677,7 +683,7 @@ void QuicClientTransport::onReadData(
     return;
   }
   bool waitingForFirstPacket = !hasReceivedPackets(*conn_);
-  processUDPData(peer, std::move(networkData));
+  processUDPData(peer, std::move(networkData), isDecrypted);
   if (connCallback_ && waitingForFirstPacket && hasReceivedPackets(*conn_)) {
     connCallback_->onFirstPeerPacketProcessed();
   }
@@ -999,6 +1005,7 @@ void QuicClientTransport::onDataAvailable(
     data->append(len);
     trackDatagramReceived(len);
     NetworkData networkData(std::move(data), packetReceiveTime);
+    networkData.isDecryptedFlags.emplace_back(params.isDecrypted);
     onNetworkData(server, std::move(networkData));
   } else {
     // if we receive a truncated packet
@@ -1102,7 +1109,7 @@ void QuicClientTransport::recvMsg(
     }
 #endif
 
-    ssize_t ret = sock.recvmsg(&msg, flags);
+    ssize_t ret = sock.recvmsg(&msg, &(params.isDecrypted));
     if (ret < 0) {
       if (errno == EAGAIN || errno == EWOULDBLOCK) {
         // If we got a retriable error, let us continue.
@@ -1190,6 +1197,7 @@ void QuicClientTransport::recvMsg(
       }
     } else {
       networkData.packets.emplace_back(std::move(readBuffer));
+      networkData.isDecryptedFlags.emplace_back(params.isDecrypted);
     }
     trackDatagramReceived(bytesRead);
   }

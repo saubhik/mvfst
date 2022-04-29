@@ -67,6 +67,7 @@ struct RecvmmsgStorage {
 struct NetworkData {
   TimePoint receiveTimePoint;
   std::vector<Buf> packets;
+  std::vector<bool> isDecryptedFlags;
   size_t totalData{0};
 
   NetworkData() = default;
@@ -75,6 +76,7 @@ struct NetworkData {
     if (buf) {
       totalData = buf->computeChainDataLength();
       packets.emplace_back(std::move(buf));
+      isDecryptedFlags.emplace_back(false);
     }
   }
 

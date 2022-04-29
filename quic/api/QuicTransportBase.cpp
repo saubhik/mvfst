@@ -1659,10 +1659,12 @@ void QuicTransportBase::onNetworkData(
   try {
     conn_->lossState.totalBytesRecvd += networkData.totalData;
     auto originalAckVersion = currentAckStateVersion(*conn_);
-    for (auto& packet : networkData.packets) {
+    for (size_t i = 0; i < networkData.packets.size(); ++i) {
       onReadData(
           peer,
-          NetworkDataSingle(std::move(packet), networkData.receiveTimePoint));
+          NetworkDataSingle(
+              std::move(networkData.packets[i]), networkData.receiveTimePoint),
+          networkData.isDecryptedFlags[i]);
     }
     processCallbacksAfterNetworkData();
     if (closeState_ != CloseState::CLOSED) {

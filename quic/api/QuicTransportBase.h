@@ -271,7 +271,8 @@ class QuicTransportBase : public QuicSocket {
    */
   virtual void onReadData(
       const folly::SocketAddress& peer,
-      NetworkDataSingle&& networkData) = 0;
+      NetworkDataSingle&& networkData,
+      bool isDecrypted) = 0;
 
   /**
    * Invoked when we have to write some data to the wire.

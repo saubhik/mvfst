@@ -94,7 +94,8 @@ class QuicServerTransport
   // From QuicTransportBase
   void onReadData(
       const folly::SocketAddress& peer,
-      NetworkDataSingle&& networkData) override;
+      NetworkDataSingle&& networkData,
+      bool isDecrypted = false) override;
   void writeData() override;
   void closeTransport() override;
   void unbindConnection() override;

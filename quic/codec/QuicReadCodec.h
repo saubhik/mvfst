@@ -101,13 +101,15 @@ class QuicReadCodec {
   virtual CodecResult parsePacket(
       BufQueue& queue,
       const AckStates& ackStates,
-      size_t dstConnIdSize = kDefaultConnectionIdSize);
+      size_t dstConnIdSize = kDefaultConnectionIdSize,
+      bool isDecrypted = false);
 
   CodecResult tryParseShortHeaderPacket(
       Buf data,
       const AckStates& ackStates,
       size_t dstConnIdSize,
-      folly::io::Cursor& cursor);
+      folly::io::Cursor& cursor,
+      bool isDecrypted);
 
   /**
    * Tries to parse the packet and returns whether or not
