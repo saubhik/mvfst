@@ -275,7 +275,7 @@ function setup_folly() {
 
   if [ ! -d "$FOLLY_DIR" ] ; then
     echo -e "${COLOR_GREEN}[ INFO ] Cloning folly (from @saubhik) ${COLOR_OFF}"
-    git clone -b feature/move-encryption-iokernel https://github.com/saubhik/folly.git "$FOLLY_DIR"
+    git clone -b feature/move-decryption-iokernel https://github.com/saubhik/folly.git "$FOLLY_DIR"
     if [[ -z "${MVFST_SKIP_SYSTEM_DEPENDENCIES-}" ]]; then
       echo -e "${COLOR_GREEN}[ INFO ] install dependencies ${COLOR_OFF}"
       if [ "$Platform" = "Linux" ]; then

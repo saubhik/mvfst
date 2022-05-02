@@ -261,8 +261,11 @@ CodecResult QuicReadCodec::tryParseShortHeaderPacket(
   folly::ByteRange sampleByteRange(
       data->writableData() + sampleOffset, sample.size());
 
-  oneRttHeaderCipher_->decryptShortHeader(
-      sampleByteRange, initialByteRange, packetNumberByteRange);
+  if (!isDecrypted) {
+    oneRttHeaderCipher_->decryptShortHeader(
+        sampleByteRange, initialByteRange, packetNumberByteRange);
+  }
+
   std::pair<PacketNum, size_t> packetNum = parsePacketNumber(
       initialByteRange.data()[0], packetNumberByteRange, expectedNextPacketNum);
   auto shortHeader =
@@ -287,9 +290,6 @@ CodecResult QuicReadCodec::tryParseShortHeaderPacket(
       folly::IOBuf::wrapBufferAsValue(data->data(), aadLen);
   data->trimStart(aadLen);
 
-  VLOG(0) << "Before decryption in mvfst, isDecrypted = " << isDecrypted << "\n"
-          << folly::hexlify(data->clone()->moveToFbString());
-
   Buf decrypted;
   if (!isDecrypted) {
     auto decryptAttempt = oneRttReadCipher_->tryDecrypt(
@@ -305,9 +305,6 @@ CodecResult QuicReadCodec::tryParseShortHeaderPacket(
   } else {
     decrypted = std::move(data);
   }
-
-  VLOG(0) << "After decryption \n"
-          << folly::hexlify(decrypted->clone()->moveToFbString());
 
   if (!decrypted) {
     // TODO better way of handling this (tests break without this)

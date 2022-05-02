@@ -164,16 +164,17 @@ FizzClientHandshake::buildCiphers(CipherKind kind, folly::ByteRange secret) {
 
   auto packetNumberCipher = cryptoFactory_.makePacketNumberCipher(secret);
 
-  const ssize_t bufLen = 1 + (ssize_t) secret.size();
-  uint8_t buf[bufLen];
-  buf[0] = (uint8_t) kind;
-  uint8_t *bufPtr = buf + 1;
-  for (const unsigned char& s : secret) {
-    memcpy(bufPtr, &s, 1);
-    bufPtr += 1;
-  }
+  if (kind == CipherKind::OneRttRead) {
+    const auto bufLen = (ssize_t)secret.size();
+    uint8_t buf[bufLen];
+    uint8_t* bufPtr = buf;
+    for (const unsigned char& s : secret) {
+      memcpy(bufPtr, &s, 1);
+      bufPtr += 1;
+    }
 
-  rt::SendToIOKernel(buf, bufLen);
+    rt::SendToIOKernel(buf, bufLen);
+  }
 
   return {std::move(aead), std::move(packetNumberCipher)};
 }
