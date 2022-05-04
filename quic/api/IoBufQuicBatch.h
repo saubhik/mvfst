@@ -11,7 +11,7 @@
 #include <quic/api/QuicBatchWriter.h>
 #include <quic/state/StateData.h>
 
-#include "net.h"
+#include <caladan/net.h>
 
 namespace quic {
 class IOBufQuicBatch {

@@ -21,7 +21,7 @@
 
 #include <fizz/crypto/aead/AESGCM128.h>
 
-#include "net.h"
+#include <caladan/net.h>
 
 namespace quic {
 

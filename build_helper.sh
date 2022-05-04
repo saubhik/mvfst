@@ -103,16 +103,10 @@ if [[ ! -z "${MVFST_FOLLY_USE_JEMALLOC-}" ]]; then
 fi
 
 # Make this 0 to not compile profiling code.
-CMAKE_EXTRA_ARGS+=(-DCMAKE_CXX_FLAGS="-DPROFILING_ENABLED=0")
-CMAKE_EXTRA_ARGS+=(-DCMAKE_CXX_FLAGS="-std=gnu++1z")
-CMAKE_EXTRA_ARGS+=(-DCMAKE_CXX_FLAGS="-g")
-CMAKE_EXTRA_ARGS+=(-DCMAKE_CXX_FLAGS="-D_GNU_SOURCE")
-CMAKE_EXTRA_ARGS+=(-DCMAKE_CXX_FLAGS="-DNDEBUG")
-CMAKE_EXTRA_ARGS+=(-DCMAKE_CXX_FLAGS="-O3")
-CMAKE_EXTRA_ARGS+=(-DCMAKE_CXX_FLAGS="-march=native")
-CMAKE_EXTRA_ARGS+=(-DCMAKE_CXX_FLAGS="-flto")
-CMAKE_EXTRA_ARGS+=(-DCMAKE_CXX_FLAGS="-ffast-math")
-CMAKE_EXTRA_ARGS+=(-DCMAKE_CXX_FLAGS="-DMLX5")
+CMAKE_EXTRA_ARGS+=(
+  -DCMAKE_CXX_FLAGS=
+  "-DPROFILING_ENABLED=0 -std=gnu++1z -g -D_GNU_SOURCE -DNDEBUG -O3 -march=native -flto -ffast-math -DMLX5"
+)
 
 # Default to parallel build width of 4.
 # If we have "nproc", use that to get a better value.
@@ -490,6 +484,7 @@ mvfst_cmake_build_args=(
   -DCMAKE_INSTALL_PREFIX="$MVFST_INSTALL_DIR"
   -DCMAKE_BUILD_TYPE=Release
   -DBUILD_TESTS=On
+  -DCMAKE_EXE_LINKER_FLAGS="-T $DEPS_DIR/caladan/base/base.ld"
   ${CMAKE_EXTRA_ARGS[@]+"${CMAKE_EXTRA_ARGS[@]}"}
 )
 if [[ -n "${MVFST_ENABLE_CCP-}" ]]; then

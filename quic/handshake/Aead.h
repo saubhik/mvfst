@@ -12,7 +12,7 @@
 #include <folly/io/IOBuf.h>
 #include <fizz/crypto/aead/Aead.h>
 
-#include "timer.h"
+#include <caladan/timer.h>
 
 namespace quic {
 

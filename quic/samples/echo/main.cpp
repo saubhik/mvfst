@@ -15,7 +15,7 @@
 #include <quic/samples/echo/EchoClient.h>
 #include <quic/samples/echo/EchoServer.h>
 
-#include "runtime.h"
+#include <caladan/runtime.h>
 
 DEFINE_string(host, "::1", "Echo server hostname/IP");
 DEFINE_int32(port, 6666, "Echo server port");
