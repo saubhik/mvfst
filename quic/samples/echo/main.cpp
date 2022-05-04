@@ -44,13 +44,13 @@ int main(int argc, char* argv[]) {
   fizz::CryptoUtils::init();
 
   if (FLAGS_mode == "server") {
-    runtime_init("/proj/quic-server-PG0/users/saubhik/caladan/server.config", ServerHandler, nullptr);
+    runtime_init("/etc/caladan/server.config", ServerHandler, nullptr);
   } else if (FLAGS_mode == "client") {
     if (FLAGS_host.empty() || FLAGS_port == 0) {
       LOG(ERROR) << "EchoClient expected --host and --port";
       return -2;
     }
-    runtime_init("/proj/quic-server-PG0/users/saubhik/caladan/client.config", ClientHandler, nullptr);
+    runtime_init("/etc/caladan/client.config", ClientHandler, nullptr);
   } else {
     LOG(ERROR) << "Unknown mode specified: " << FLAGS_mode;
     return -1;

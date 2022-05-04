@@ -811,10 +811,7 @@ int main(int argc, char* argv[]) {
   fizz::CryptoUtils::init();
 
   if (FLAGS_mode == "server") {
-    runtime_init(
-        "/proj/quic-server-PG0/users/saubhik/caladan/server.config",
-        ServerHandler,
-        nullptr);
+    runtime_init("/etc/caladan/server.config", ServerHandler, nullptr);
   } else if (FLAGS_mode == "client") {
     if (FLAGS_num_streams != 1) {
       LOG(ERROR) << "num_streams option is server only";
@@ -824,10 +821,7 @@ int main(int argc, char* argv[]) {
       LOG(ERROR) << "bytes_per_stream option is server only";
       return 1;
     }
-    runtime_init(
-        "/proj/quic-server-PG0/users/saubhik/caladan/client.config",
-        ClientHandler,
-        nullptr);
+    runtime_init("/etc/caladan/client.config", ClientHandler, nullptr);
   }
   return 0;
 }
