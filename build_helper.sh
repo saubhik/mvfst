@@ -271,7 +271,7 @@ function setup_caladan_runtime() {
 
   if [ ! -d "$CALADAN_DIR" ]; then
     echo -e "${COLOR_GREEN}[ INFO ] Cloning caladan (from @saubhik) ${COLOR_OFF}"
-    git clone -b feature/move-decryption-iokernel https://github.com/saubhik/caladan.git "$CALADAN_DIR"
+    git clone -b release-QuicNIC-v0.2 https://github.com/saubhik/caladan.git "$CALADAN_DIR"
     echo -e "${COLOR_GREEN}[ INFO ] Building submodules ${COLOR_OFF}"
     cd "$CALADAN_DIR" || exit
     make submodules
@@ -339,7 +339,7 @@ function setup_folly() {
 
   if [ ! -d "$FOLLY_DIR" ]; then
     echo -e "${COLOR_GREEN}[ INFO ] Cloning folly (from @saubhik) ${COLOR_OFF}"
-    git clone -b feature/move-decryption-iokernel https://github.com/saubhik/folly.git "$FOLLY_DIR"
+    git clone -b release-QuicNIC-v0.2 https://github.com/saubhik/folly.git "$FOLLY_DIR"
     if [[ -z "${MVFST_SKIP_SYSTEM_DEPENDENCIES-}" ]]; then
       echo -e "${COLOR_GREEN}[ INFO ] install dependencies ${COLOR_OFF}"
       if [ "$Platform" = "Linux" ]; then
@@ -390,7 +390,7 @@ function setup_fizz() {
   FIZZ_BUILD_DIR=$DEPS_DIR/fizz/build/
   if [ ! -d "$FIZZ_DIR" ]; then
     echo -e "${COLOR_GREEN}[ INFO ] Cloning fizz (from @saubhik) ${COLOR_OFF}"
-    git clone -b feature/add-shenango-support https://github.com/saubhik/fizz "$FIZZ_DIR"
+    git clone -b release-QuicNIC-v0.2 https://github.com/saubhik/fizz "$FIZZ_DIR"
   fi
 
   # synch_dependency_to_commit "$FIZZ_DIR" "$MVFST_ROOT_DIR/build/deps/github_hashes/facebookincubator/fizz-rev.txt"
@@ -490,4 +490,4 @@ make install
 
 setup_caladan_iokernel
 
-echo -e "${COLOR_GREEN}MVFST is installed ${COLOR_OFF}"
+echo -e "${COLOR_GREEN}QuicNIC is installed ${COLOR_OFF}"
