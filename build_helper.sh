@@ -19,8 +19,7 @@ COLOR_OFF="\033[0m"
 usage() {
   cat 1>&2 <<EOF
 
-Usage ${0##*/} [-h|?] [-p PATH]
-  -p BUILD_DIR                           (optional): Path of the base dir for mvfst
+Usage ${0##*/} [-h|?]
   -m                                     (optional): Build folly without jemalloc
   -s                                     (optional): Skip installing system package dependencies
   -c                                     (optional): Use ccache
@@ -31,11 +30,8 @@ EOF
 }
 
 FETCH_DEPENDENCIES=true
-while getopts ":hp:msczf" arg; do
+while getopts ":h:msczf" arg; do
   case $arg in
-  p)
-    BUILD_DIR="${OPTARG}"
-    ;;
   m)
     MVFST_FOLLY_USE_JEMALLOC="n"
     ;;
@@ -58,13 +54,11 @@ while getopts ":hp:msczf" arg; do
   esac
 done
 
-# Validate required parameters
-if [ -z "${BUILD_DIR-}" ]; then
-  echo -e "${COLOR_RED}[ INFO ] Build dir is not set. So going to build into _build ${COLOR_OFF}"
-  BUILD_DIR=_build
-  mkdir -p $BUILD_DIR
-fi
+echo -e "${COLOR_RED}[ INFO ] Going to build into _build ${COLOR_OFF}"
+BUILD_DIR=_build
+mkdir -p $BUILD_DIR
 
+# Validate required parameters
 if [[ -n "${MVFST_FOLLY_USE_JEMALLOC-}" ]]; then
   if [[ "$MVFST_FOLLY_USE_JEMALLOC" != "n" ]]; then
     unset $MVFST_FOLLY_USE_JEMALLOC
@@ -77,6 +71,8 @@ cd $BUILD_DIR || exit
 BWD=$(pwd)
 DEPS_DIR=$BWD/deps
 mkdir -p "$DEPS_DIR"
+
+CALADAN_LINKER_SCRIPT=$DEPS_DIR/caladan/base/base.ld
 
 MVFST_BUILD_DIR=$BWD/build
 mkdir -p "$MVFST_BUILD_DIR"
@@ -285,7 +281,7 @@ function setup_caladan_runtime() {
 
   cd "$CALADAN_DIR" || exit
   make -j "$nproc" libs
-  cp -R "$CALADAN_DIR/inc/." "/usr/local/include"
+  cp -p -R "$CALADAN_DIR/inc/." "/usr/local/include"
 
   cd "$CALADAN_KSCHED_DIR" || exit
   make -j "$nproc"
@@ -297,23 +293,23 @@ function setup_caladan_runtime() {
   make -j "$nproc"
 
   mkdir -p $CALADAN_INCLUDE_DIR || exit
-  cp "$CALADAN_BINDINGS_DIR/runtime.h" "$CALADAN_INCLUDE_DIR/runtime.h"
-  cp "$CALADAN_BINDINGS_DIR/net.h" "$CALADAN_INCLUDE_DIR/net.h"
-  cp "$CALADAN_BINDINGS_DIR/sh_event.h" "$CALADAN_INCLUDE_DIR/sh_event.h"
-  cp "$CALADAN_BINDINGS_DIR/thread.h" "$CALADAN_INCLUDE_DIR/thread.h"
-  cp "$CALADAN_BINDINGS_DIR/sync.h" "$CALADAN_INCLUDE_DIR/sync.h"
-  cp "$CALADAN_BINDINGS_DIR/timer.h" "$CALADAN_INCLUDE_DIR/timer.h"
+  cp -p "$CALADAN_BINDINGS_DIR/runtime.h" "$CALADAN_INCLUDE_DIR/runtime.h"
+  cp -p "$CALADAN_BINDINGS_DIR/net.h" "$CALADAN_INCLUDE_DIR/net.h"
+  cp -p "$CALADAN_BINDINGS_DIR/sh_event.h" "$CALADAN_INCLUDE_DIR/sh_event.h"
+  cp -p "$CALADAN_BINDINGS_DIR/thread.h" "$CALADAN_INCLUDE_DIR/thread.h"
+  cp -p "$CALADAN_BINDINGS_DIR/sync.h" "$CALADAN_INCLUDE_DIR/sync.h"
+  cp -p "$CALADAN_BINDINGS_DIR/timer.h" "$CALADAN_INCLUDE_DIR/timer.h"
 
-  cp "$CALADAN_BINDINGS_DIR/librt++.a" "/usr/local/lib/librt++.a"
+  cp -p "$CALADAN_BINDINGS_DIR/librt++.a" "/usr/local/lib/librt++.a"
 
-  cp "$CALADAN_DIR/libruntime.a" "/usr/local/lib/libruntime.a"
-  cp "$CALADAN_DIR/libnet.a" "/usr/local/lib/libnet.a"
-  cp "$CALADAN_DIR/libbase.a" "/usr/local/lib/libbase.a"
+  cp -p "$CALADAN_DIR/libruntime.a" "/usr/local/lib/libruntime.a"
+  cp -p "$CALADAN_DIR/libnet.a" "/usr/local/lib/libnet.a"
+  cp -p "$CALADAN_DIR/libbase.a" "/usr/local/lib/libbase.a"
 
   mkdir -p "$CALADAN_CONFIG_DIR"
-  cp "$CALADAN_DIR/server.config" "$CALADAN_CONFIG_DIR/server.config"
-  cp "$CALADAN_DIR/client.config" "$CALADAN_CONFIG_DIR/client.config"
-  cp "$CALADAN_DIR/test.config" "$CALADAN_CONFIG_DIR/test.config"
+  cp -p "$CALADAN_DIR/server.config" "$CALADAN_CONFIG_DIR/server.config"
+  cp -p "$CALADAN_DIR/client.config" "$CALADAN_CONFIG_DIR/client.config"
+  cp -p "$CALADAN_DIR/test.config" "$CALADAN_CONFIG_DIR/test.config"
 
   echo -e "${COLOR_GREEN}Caladan runtime is installed ${COLOR_OFF}"
   cd "$BWD" || exit
@@ -331,7 +327,7 @@ function setup_caladan_iokernel() {
   cd "${CALADAN_DIR}" || exit
   make -j "$nproc" iokerneld
 
-  cp "$CALADAN_DIR/iokerneld" "$BWD/iokerneld"
+  cp -p "$CALADAN_DIR/iokerneld" "$BWD/iokerneld"
 
   echo -e "${COLOR_GREEN}Caladan iokerneld is installed ${COLOR_OFF}"
   cd "$BWD" || exit
@@ -339,7 +335,6 @@ function setup_caladan_iokernel() {
 
 function setup_folly() {
   FOLLY_DIR=$DEPS_DIR/folly
-  CALADAN_DIR=$DEPS_DIR/caladan
   FOLLY_BUILD_DIR=$DEPS_DIR/folly/build/
 
   if [ ! -d "$FOLLY_DIR" ]; then
@@ -381,7 +376,7 @@ function setup_folly() {
   cmake -DCMAKE_BUILD_TYPE=Release \
     -DCMAKE_PREFIX_PATH="$FOLLY_INSTALL_DIR" \
     -DCMAKE_INSTALL_PREFIX="$FOLLY_INSTALL_DIR" \
-    -DCMAKE_EXE_LINKER_FLAGS="-T $CALADAN_DIR/base/base.ld" \
+    -DCMAKE_EXE_LINKER_FLAGS="-T $CALADAN_LINKER_SCRIPT" \
     ${CMAKE_EXTRA_ARGS[@]+"${CMAKE_EXTRA_ARGS[@]}"} \
     ..
   make -j "$nproc"
@@ -392,7 +387,6 @@ function setup_folly() {
 
 function setup_fizz() {
   FIZZ_DIR=$DEPS_DIR/fizz
-  CALADAN_DIR=$DEPS_DIR/caladan
   FIZZ_BUILD_DIR=$DEPS_DIR/fizz/build/
   if [ ! -d "$FIZZ_DIR" ]; then
     echo -e "${COLOR_GREEN}[ INFO ] Cloning fizz (from @saubhik) ${COLOR_OFF}"
@@ -408,7 +402,7 @@ function setup_fizz() {
     -DBUILD_TESTS=OFF \
     -DCMAKE_PREFIX_PATH="$FIZZ_INSTALL_DIR" \
     -DCMAKE_INSTALL_PREFIX="$FIZZ_INSTALL_DIR" \
-    -DCMAKE_EXE_LINKER_FLAGS="-T $CALADAN_DIR/base/base.ld" \
+    -DCMAKE_EXE_LINKER_FLAGS="-T $CALADAN_LINKER_SCRIPT" \
     ${CMAKE_EXTRA_ARGS[@]+"${CMAKE_EXTRA_ARGS[@]}"} \
     "$FIZZ_DIR/fizz"
   make -j "$nproc"
@@ -484,7 +478,7 @@ mvfst_cmake_build_args=(
   -DCMAKE_INSTALL_PREFIX="$MVFST_INSTALL_DIR"
   -DCMAKE_BUILD_TYPE=Release
   -DBUILD_TESTS=On
-  -DCMAKE_EXE_LINKER_FLAGS="-T $DEPS_DIR/caladan/base/base.ld"
+  -DCMAKE_EXE_LINKER_FLAGS="-T $CALADAN_LINKER_SCRIPT"
   ${CMAKE_EXTRA_ARGS[@]+"${CMAKE_EXTRA_ARGS[@]}"}
 )
 if [[ -n "${MVFST_ENABLE_CCP-}" ]]; then
