@@ -22,7 +22,7 @@
 #include <fizz/record/Types.h>
 #include <quic/fizz/handshake/FizzBridge.h>
 
-#include "net.h"
+#include <caladan/net.h>
 
 namespace {
 #if PROFILING_ENABLED

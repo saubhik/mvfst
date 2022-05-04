@@ -22,7 +22,7 @@
 
 #include <iostream>
 
-#include "net.h"
+#include <caladan/net.h>
 
 namespace fizz {
 namespace server {

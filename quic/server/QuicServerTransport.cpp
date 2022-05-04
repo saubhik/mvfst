@@ -112,7 +112,8 @@ void QuicServerTransport::setServerConnectionIdRejector(
 
 void QuicServerTransport::onReadData(
     const folly::SocketAddress& peer,
-    NetworkDataSingle&& networkData) {
+    NetworkDataSingle&& networkData,
+    bool isDecrypted) {
   ServerEvents::ReadData readData;
   readData.peer = peer;
   readData.networkData = std::move(networkData);

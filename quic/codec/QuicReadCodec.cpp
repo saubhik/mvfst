@@ -239,7 +239,8 @@ CodecResult QuicReadCodec::tryParseShortHeaderPacket(
     Buf data,
     const AckStates& ackStates,
     size_t dstConnIdSize,
-    folly::io::Cursor& cursor) {
+    folly::io::Cursor& cursor,
+    bool isDecrypted) {
   // TODO: allow other connid lengths from the state.
   size_t packetNumberOffset = 1 + dstConnIdSize;
   PacketNum expectedNextPacketNum =
@@ -260,8 +261,11 @@ CodecResult QuicReadCodec::tryParseShortHeaderPacket(
   folly::ByteRange sampleByteRange(
       data->writableData() + sampleOffset, sample.size());
 
-  oneRttHeaderCipher_->decryptShortHeader(
-      sampleByteRange, initialByteRange, packetNumberByteRange);
+  if (!isDecrypted) {
+    oneRttHeaderCipher_->decryptShortHeader(
+        sampleByteRange, initialByteRange, packetNumberByteRange);
+  }
+
   std::pair<PacketNum, size_t> packetNum = parsePacketNumber(
       initialByteRange.data()[0], packetNumberByteRange, expectedNextPacketNum);
   auto shortHeader =
@@ -287,16 +291,21 @@ CodecResult QuicReadCodec::tryParseShortHeaderPacket(
   data->trimStart(aadLen);
 
   Buf decrypted;
-  auto decryptAttempt = oneRttReadCipher_->tryDecrypt(
-      std::move(data), &headerData, packetNum.first);
-  if (!decryptAttempt) {
-    auto protectionType = shortHeader->getProtectionType();
-    VLOG(10) << "Unable to decrypt packet=" << packetNum.first
-             << " protectionType=" << (int)protectionType << " "
-             << connIdToHex();
-    return CodecResult(Nothing());
+  if (!isDecrypted) {
+    auto decryptAttempt = oneRttReadCipher_->tryDecrypt(
+        std::move(data), &headerData, packetNum.first);
+    if (!decryptAttempt) {
+      auto protectionType = shortHeader->getProtectionType();
+      VLOG(10) << "Unable to decrypt packet=" << packetNum.first
+               << " protectionType=" << (int)protectionType << " "
+               << connIdToHex();
+      return CodecResult(Nothing());
+    }
+    decrypted = std::move(*decryptAttempt);
+  } else {
+    decrypted = std::move(data);
   }
-  decrypted = std::move(*decryptAttempt);
+
   if (!decrypted) {
     // TODO better way of handling this (tests break without this)
     decrypted = folly::IOBuf::create(0);
@@ -309,7 +318,8 @@ CodecResult QuicReadCodec::tryParseShortHeaderPacket(
 CodecResult QuicReadCodec::parsePacket(
     BufQueue& queue,
     const AckStates& ackStates,
-    size_t dstConnIdSize) {
+    size_t dstConnIdSize,
+    bool isDecrypted) {
   if (queue.empty()) {
     return CodecResult(Nothing());
   }
@@ -355,7 +365,7 @@ CodecResult QuicReadCodec::parsePacket(
   }
 
   auto maybeShortHeaderPacket = tryParseShortHeaderPacket(
-      std::move(data), ackStates, dstConnIdSize, cursor);
+      std::move(data), ackStates, dstConnIdSize, cursor, isDecrypted);
   if (token && maybeShortHeaderPacket.nothing()) {
     return StatelessReset(*token);
   }

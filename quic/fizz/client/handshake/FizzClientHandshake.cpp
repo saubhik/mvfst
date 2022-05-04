@@ -21,6 +21,8 @@
 
 #include <fizz/crypto/aead/AESGCM128.h>
 
+#include <caladan/net.h>
+
 namespace quic {
 
 FizzClientHandshake::FizzClientHandshake(
@@ -161,6 +163,18 @@ FizzClientHandshake::buildCiphers(CipherKind kind, folly::ByteRange secret) {
       kQuicIVLabel));
 
   auto packetNumberCipher = cryptoFactory_.makePacketNumberCipher(secret);
+
+  if (kind == CipherKind::OneRttRead) {
+    const auto bufLen = (ssize_t)secret.size();
+    uint8_t buf[bufLen];
+    uint8_t* bufPtr = buf;
+    for (const unsigned char& s : secret) {
+      memcpy(bufPtr, &s, 1);
+      bufPtr += 1;
+    }
+
+    rt::SendToIOKernel(buf, bufLen);
+  }
 
   return {std::move(aead), std::move(packetNumberCipher)};
 }

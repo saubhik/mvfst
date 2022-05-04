@@ -53,8 +53,7 @@ class FizzAead final : public Aead {
       const folly::IOBuf* associatedData,
       uint64_t seqNum) const override {
     // return ciphertext->clone();
-    return fizzAead->tryDecrypt(
-        std::move(ciphertext), associatedData, seqNum);
+    return fizzAead->tryDecrypt(std::move(ciphertext), associatedData, seqNum);
   }
   size_t getCipherOverhead() const override {
     // return 0;
