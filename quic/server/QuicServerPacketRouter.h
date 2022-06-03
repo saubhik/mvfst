@@ -133,7 +133,7 @@ class TakeoverHandlerCallback : public folly::AsyncUDPSocket::ReadCallback,
 
   void pause();
 
-  int getSocketFD();
+  rt::UdpConn* getSocketFD();
 
   const folly::SocketAddress& getAddress() const;
 

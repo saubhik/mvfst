@@ -101,4 +101,4 @@ install(
   DESTINATION lib
 )
 
-add_subdirectory(test)
+# add_subdirectory(test)

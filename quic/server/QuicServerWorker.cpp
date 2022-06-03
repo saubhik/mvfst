@@ -159,7 +159,7 @@ void QuicServerWorker::pauseRead() {
   socket_->pauseRead();
 }
 
-int QuicServerWorker::getFD() {
+rt::UdpConn* QuicServerWorker::getFD() {
   CHECK(socket_);
   return socket_->getNetworkSocket().toFd();
 }
@@ -986,7 +986,7 @@ void QuicServerWorker::onReadClosed() noexcept {
   shutdownAllConnections(LocalErrorCode::SHUTTING_DOWN);
 }
 
-int QuicServerWorker::getTakeoverHandlerSocketFD() {
+rt::UdpConn* QuicServerWorker::getTakeoverHandlerSocketFD() {
   CHECK(takeoverCB_);
   return takeoverCB_->getSocketFD();
 }
@@ -1082,7 +1082,7 @@ std::unique_ptr<folly::AsyncUDPSocket> QuicServerWorker::makeSocket(
 
 std::unique_ptr<folly::AsyncUDPSocket> QuicServerWorker::makeSocket(
     folly::EventBase* evb,
-    int fd) const {
+    rt::UdpConn* fd) const {
   return socketFactory_->make(evb, fd);
 }
 

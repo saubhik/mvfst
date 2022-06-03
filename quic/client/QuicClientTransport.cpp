@@ -1141,7 +1141,21 @@ void QuicClientTransport::recvMsg(
     totalData += bytesRead;
     if (!server) {
       server = folly::SocketAddress();
-      server->setFromSockaddr(rawAddr, addrLen);
+      // TODO(@saubhik): This is rather hacky.
+      // server->setFromSockaddr(rawAddr, addrLen);
+      struct netaddr {
+        uint32_t ip;
+        uint16_t port;
+      };
+      char sip[16];
+      auto* rawNetAddr = reinterpret_cast<netaddr*>(rawAddr);
+      uint32_t ipAddrRaw = rawNetAddr->ip;
+      snprintf(sip, 16, "%d.%d.%d.%d",
+               ((ipAddrRaw >> 24) & 0xff),
+               ((ipAddrRaw >> 16) & 0xff),
+               ((ipAddrRaw >> 8) & 0xff),
+               (ipAddrRaw & 0xff));
+      server->setFromIpAddrPort(folly::IPAddress(sip), rawNetAddr->port);
     }
     VLOG(10) << "Got data from socket peer=" << *server << " len=" << bytesRead;
     readBuffer->append(bytesRead);
@@ -1291,7 +1305,21 @@ void QuicClientTransport::recvMmsg(
     if (!server) {
       server = folly::SocketAddress();
       auto* rawAddr = reinterpret_cast<sockaddr*>(&addrs[i]);
-      server->setFromSockaddr(rawAddr, addrLen);
+      // TODO(@saubhik): This is rather hacky.
+      // server->setFromSockaddr(rawAddr, addrLen);
+      struct netaddr {
+        uint32_t ip;
+        uint16_t port;
+      };
+      char sip[16];
+      auto* rawNetAddr = reinterpret_cast<netaddr*>(rawAddr);
+      uint32_t ipAddrRaw = rawNetAddr->ip;
+      snprintf(sip, 16, "%d.%d.%d.%d",
+               ((ipAddrRaw >> 24) & 0xff),
+               ((ipAddrRaw >> 16) & 0xff),
+               ((ipAddrRaw >> 8) & 0xff),
+               (ipAddrRaw & 0xff));
+      server->setFromIpAddrPort(folly::IPAddress(sip), rawNetAddr->port);
     }
 
     VLOG(10) << "Got data from socket peer=" << *server << " len=" << bytesRead;

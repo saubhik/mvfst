@@ -15,11 +15,23 @@
 #include <quic/samples/echo/EchoClient.h>
 #include <quic/samples/echo/EchoServer.h>
 
+#include "runtime.h"
+
 DEFINE_string(host, "::1", "Echo server hostname/IP");
 DEFINE_int32(port, 6666, "Echo server port");
 DEFINE_string(mode, "server", "Mode to run in: 'client' or 'server'");
 
 using namespace quic::samples;
+
+void ServerHandler(void* /*arg*/) {
+  EchoServer server(FLAGS_host, FLAGS_port);
+  server.start();
+}
+
+void ClientHandler(void* /*arg*/) {
+  EchoClient client(FLAGS_host, FLAGS_port);
+  client.start();
+}
 
 int main(int argc, char* argv[]) {
 #if FOLLY_HAVE_LIBGFLAGS
@@ -32,15 +44,13 @@ int main(int argc, char* argv[]) {
   fizz::CryptoUtils::init();
 
   if (FLAGS_mode == "server") {
-    EchoServer server(FLAGS_host, FLAGS_port);
-    server.start();
+    runtime_init("/proj/quic-server-PG0/users/saubhik/caladan/server.config", ServerHandler, nullptr);
   } else if (FLAGS_mode == "client") {
     if (FLAGS_host.empty() || FLAGS_port == 0) {
       LOG(ERROR) << "EchoClient expected --host and --port";
       return -2;
     }
-    EchoClient client(FLAGS_host, FLAGS_port);
-    client.start();
+    runtime_init("/proj/quic-server-PG0/users/saubhik/caladan/client.config", ClientHandler, nullptr);
   } else {
     LOG(ERROR) << "Unknown mode specified: " << FLAGS_mode;
     return -1;

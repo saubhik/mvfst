@@ -311,5 +311,5 @@ install(
   DESTINATION lib
 )
 
-add_subdirectory(test)
-add_subdirectory(stream/test)
+# add_subdirectory(test)
+# add_subdirectory(stream/test)

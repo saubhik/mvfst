@@ -17,7 +17,7 @@ class QuicReusePortUDPSocketFactory : public QuicUDPSocketFactory {
   ~QuicReusePortUDPSocketFactory() override {}
   QuicReusePortUDPSocketFactory() {}
 
-  std::unique_ptr<folly::AsyncUDPSocket> make(folly::EventBase* evb, int)
+  std::unique_ptr<folly::AsyncUDPSocket> make(folly::EventBase* evb, rt::UdpConn*)
       override {
     auto sock = std::make_unique<folly::AsyncUDPSocket>(evb);
     sock->setReusePort(true);

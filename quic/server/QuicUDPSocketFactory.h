@@ -18,6 +18,6 @@ class QuicUDPSocketFactory {
 
   virtual std::unique_ptr<folly::AsyncUDPSocket> make(
       folly::EventBase* evb,
-      int fd) = 0;
+      rt::UdpConn* fd) = 0;
 };
 } // namespace quic
